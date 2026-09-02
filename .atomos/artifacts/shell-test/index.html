@@ -1,0 +1,96 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Shell / Bash Test</title>
+    <style>
+      :root { color-scheme: dark; font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace; }
+      * { box-sizing: border-box; }
+      body { background: #101512; color: #e6eee7; margin: 0; min-height: 100vh; }
+      main { margin: 0 auto; max-width: 900px; padding: 28px 20px 48px; }
+      h1 { font-size: 1.4rem; margin: 0 0 8px; }
+      p { color: #aebcaf; line-height: 1.55; margin: 0 0 20px; }
+      label { display: block; font-size: .8rem; font-weight: 700; letter-spacing: .08em; margin: 20px 0 8px; text-transform: uppercase; }
+      textarea, input { background: #18201a; border: 1px solid #344438; border-radius: 6px; color: inherit; font: inherit; padding: 12px; width: 100%; }
+      textarea { min-height: 144px; resize: vertical; }
+      .settings { align-items: end; display: flex; gap: 12px; }
+      .settings div { flex: 1; }
+      button { background: #b7e365; border: 0; border-radius: 6px; color: #15200d; cursor: pointer; font: inherit; font-weight: 700; padding: 12px 18px; white-space: nowrap; }
+      button:disabled { cursor: wait; opacity: .6; }
+      #status { color: #b7e365; font-size: .9rem; margin: 20px 0 8px; min-height: 1.4em; }
+      #output { background: #080b09; border: 1px solid #28332b; border-radius: 6px; min-height: 190px; overflow: auto; padding: 14px; white-space: pre-wrap; word-break: break-word; }
+      .error { color: #ffb4ab !important; }
+      .hint { color: #7f9182; font-size: .8rem; margin-top: 8px; }
+      @media (max-width: 560px) { .settings { align-items: stretch; flex-direction: column; } button { width: 100%; } }
+    </style>
+  </head>
+  <body>
+    <main>
+      <h1>Shell / Bash Test</h1>
+      <p>Commands execute in the workspace root. Enable <strong>Settings -> Artifact -> Allow shell access</strong> before running a command.</p>
+      <label for="command">Command</label>
+      <textarea id="command" spellcheck="false"></textarea>
+      <div class="settings">
+        <div>
+          <label for="timeout">Timeout (ms)</label>
+          <input id="timeout" type="number" min="1" max="600000" value="30000">
+        </div>
+        <button id="run" type="button">Run command</button>
+      </div>
+      <div class="hint">Maximum timeout: 600000 ms. Output may be truncated by the host.</div>
+      <div id="status" role="status">Ready.</div>
+      <pre id="output" aria-live="polite">No command executed.</pre>
+    </main>
+    <script>
+      const command = document.querySelector("#command");
+      const timeout = document.querySelector("#timeout");
+      const run = document.querySelector("#run");
+      const status = document.querySelector("#status");
+      const output = document.querySelector("#output");
+
+      command.value = "pwd\nprintf 'Shell access is working.\\n'\nls -la";
+
+      function showStatus(message, isError = false) {
+        status.textContent = message;
+        status.classList.toggle("error", isError);
+      }
+
+      run.addEventListener("click", async () => {
+        const value = command.value.trim();
+        const timeoutValue = Number(timeout.value);
+        if (!value) {
+          showStatus("Enter a command first.", true);
+          return;
+        }
+        if (!Number.isInteger(timeoutValue) || timeoutValue < 1 || timeoutValue > 600000) {
+          showStatus("Timeout must be an integer from 1 to 600000 ms.", true);
+          return;
+        }
+        if (!window.opencodeShell?.run) {
+          showStatus("Shell API is unavailable. Open this page as an AtomOS Artifact.", true);
+          return;
+        }
+
+        run.disabled = true;
+        output.textContent = "";
+        showStatus("Running command...");
+        try {
+          const result = await window.opencodeShell.run({ command: value, timeout: timeoutValue });
+          const stdout = result.stdout || "(empty)";
+          const stderr = result.stderr || "(empty)";
+          output.textContent = `Exit code: ${result.exitCode}\nTruncated: ${result.truncated ? "yes" : "no"}\n\nSTDOUT\n${stdout}\n\nSTDERR\n${stderr}`;
+          showStatus(result.exitCode === 0 ? "Command completed." : `Command exited with code ${result.exitCode}.`, result.exitCode !== 0);
+        } catch (error) {
+          const details = [error.message || "Shell request failed."];
+          if (error.code !== undefined) details.push(`Code: ${error.code}`);
+          if (error.data !== undefined) details.push(`Data: ${JSON.stringify(error.data)}`);
+          output.textContent = details.join("\n");
+          showStatus("Command could not be run. Check Artifact shell access.", true);
+        } finally {
+          run.disabled = false;
+        }
+      });
+    </script>
+  </body>
+</html>

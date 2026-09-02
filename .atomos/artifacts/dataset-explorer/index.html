@@ -1,0 +1,619 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Dataset Explorer</title>
+    <link rel="stylesheet" href="node_modules/tabulator-tables/dist/css/tabulator.min.css" />
+    <style>
+      :root {
+        color-scheme: light;
+        --ink: #17211d;
+        --muted: #63716a;
+        --line: #dfe6e1;
+        --paper: #f6f7f2;
+        --panel: #ffffff;
+        --green: #155d45;
+        --green-soft: #e2f0e9;
+        --amber: #b66819;
+        font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      }
+      * { box-sizing: border-box; }
+      body { margin: 0; min-width: 320px; background: var(--paper); color: var(--ink); }
+      button, input, select { font: inherit; }
+      button { cursor: pointer; }
+      .app { min-height: 100vh; display: grid; grid-template-rows: auto auto minmax(0, 1fr); }
+      header {
+        min-height: 76px; padding: 18px 24px; display: flex; align-items: center; justify-content: space-between;
+        gap: 24px; color: #f4f7f5; background: #172c25;
+      }
+      .brand { display: flex; align-items: center; gap: 14px; min-width: 0; }
+      .brand-mark {
+        width: 40px; height: 40px; display: grid; place-items: center; flex: 0 0 auto;
+        border: 1px solid #638276; border-radius: 11px; color: #a9d7c4; font: 700 15px/1 ui-monospace, monospace;
+      }
+      h1 { margin: 0; font: 650 18px/1.2 ui-monospace, monospace; letter-spacing: .01em; }
+      .subtitle { margin-top: 4px; color: #a9bbb4; font-size: 12px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+      .header-actions { display: flex; align-items: center; gap: 9px; }
+      .button {
+        border: 1px solid #cdd8d1; border-radius: 8px; padding: 8px 12px; background: white; color: var(--ink);
+        font-weight: 600; font-size: 13px; transition: border-color .15s, background .15s;
+      }
+      .button:hover { border-color: #91a39a; background: #f8faf8; }
+      .button.primary { border-color: #77aa93; background: #daf1e6; color: #123d2f; }
+      .button.ghost { border-color: #4a665b; background: transparent; color: #dce9e3; }
+      .toolbar {
+        display: grid; grid-template-columns: minmax(180px, 1.5fr) repeat(2, minmax(130px, .65fr)) auto;
+        align-items: end; gap: 12px; padding: 14px 24px; border-bottom: 1px solid var(--line); background: var(--panel);
+      }
+      .control { display: grid; gap: 5px; min-width: 0; }
+      .control label { color: var(--muted); font-size: 10px; font-weight: 700; letter-spacing: .09em; text-transform: uppercase; }
+      .control input, .control select {
+        width: 100%; height: 36px; padding: 0 10px; border: 1px solid #ccd6d0; border-radius: 7px;
+        outline: none; background: #fbfcfa; color: var(--ink);
+      }
+      .control input:focus, .control select:focus { border-color: #4d8a70; box-shadow: 0 0 0 3px #dfeee7; }
+      .main { min-height: 0; display: grid; grid-template-columns: minmax(0, 1fr) 320px; }
+      .main.inspector-collapsed { grid-template-columns: minmax(0, 1fr) 46px; }
+      .table-stage { min-width: 0; min-height: 0; padding: 16px 0 20px 24px; display: grid; grid-template-rows: auto minmax(300px, 1fr); gap: 10px; }
+      .dataset-meta { display: flex; align-items: center; gap: 16px; min-height: 30px; color: var(--muted); font-size: 12px; }
+      .dataset-meta strong { color: var(--ink); font-weight: 650; }
+      .meta-pill { padding: 4px 8px; border: 1px solid var(--line); border-radius: 999px; background: white; }
+      #table { height: 100%; min-height: 360px; border-radius: 9px 0 0 9px; overflow: hidden; }
+      aside { min-height: 0; overflow: auto; padding: 18px; border-left: 1px solid var(--line); background: #f9faf7; }
+      .aside-title { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-bottom: 14px; }
+      .aside-title h2 { margin: 0; font-size: 14px; }
+      .aside-title span { margin-left: auto; color: var(--muted); font-size: 11px; }
+      .icon-button {
+        width: 28px; height: 28px; display: grid; place-items: center; flex: 0 0 auto; padding: 0;
+        border: 1px solid var(--line); border-radius: 7px; background: white; color: var(--muted); font-weight: 800;
+      }
+      .icon-button:hover { border-color: #9bada3; color: var(--green); }
+      .main.inspector-collapsed aside { padding: 12px 8px; overflow: hidden; }
+      .main.inspector-collapsed .aside-title { justify-content: center; margin: 0; }
+      .main.inspector-collapsed .aside-title h2,
+      .main.inspector-collapsed .aside-title span,
+      .main.inspector-collapsed #inspector-content { display: none; }
+      .cards { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+      .stat-card { min-height: 72px; padding: 10px; border: 1px solid var(--line); border-radius: 8px; background: white; }
+      .stat-card .label { color: var(--muted); font-size: 10px; text-transform: uppercase; letter-spacing: .06em; }
+      .stat-card .value { margin-top: 8px; overflow: hidden; font: 650 16px/1.2 ui-monospace, monospace; text-overflow: ellipsis; }
+      .section-title { margin: 22px 0 9px; color: var(--muted); font-size: 10px; font-weight: 750; letter-spacing: .08em; text-transform: uppercase; }
+      .column-list, .value-list, .cluster-list { display: grid; gap: 6px; }
+      .column-item, .value-item {
+        width: 100%; display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: center; gap: 8px;
+        padding: 8px 9px; border: 1px solid transparent; border-radius: 7px; background: transparent; color: var(--ink); text-align: left;
+      }
+      .column-item:hover, .column-item.active { border-color: #cbdad2; background: white; }
+      .column-item .name, .value-item .name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 12px; }
+      .type { color: var(--green); font: 650 10px/1 ui-monospace, monospace; text-transform: uppercase; }
+      .value-item { padding: 6px 2px; border-bottom: 1px dashed var(--line); border-radius: 0; }
+      .bar { grid-column: 1 / -1; height: 3px; border-radius: 2px; background: #e6ebe7; overflow: hidden; }
+      .bar i { display: block; height: 100%; background: #5b967d; }
+      .cluster {
+        padding: 10px; border-left: 3px solid var(--amber); border-radius: 4px; background: #fff8ee; font-size: 12px;
+      }
+      .cluster b { display: block; margin-bottom: 5px; color: #7a4512; }
+      .cluster span { color: #664b31; line-height: 1.5; }
+      .empty { padding: 28px 12px; color: var(--muted); text-align: center; font-size: 12px; line-height: 1.7; }
+      .drop-overlay {
+        position: fixed; inset: 12px; z-index: 10; display: none; place-items: center; border: 2px dashed #6ca087;
+        border-radius: 18px; background: rgba(225, 241, 233, .94); color: #174a38; font-size: 18px; font-weight: 700;
+      }
+      body.dragging .drop-overlay { display: grid; }
+      #file-input { display: none; }
+      .toast {
+        position: fixed; right: 18px; bottom: 18px; z-index: 20; max-width: 360px; padding: 11px 14px;
+        border-radius: 8px; background: #172c25; color: white; box-shadow: 0 9px 30px #1c312733; font-size: 12px;
+        opacity: 0; transform: translateY(8px); pointer-events: none; transition: .2s;
+      }
+      .toast.show { opacity: 1; transform: translateY(0); }
+      .tabulator { border: 1px solid #d7dfda; background: white; font-size: 12px; }
+      .tabulator .tabulator-header { border-bottom: 1px solid #cbd6cf; background: #eaf0ec; color: #24342d; }
+      .tabulator .tabulator-header .tabulator-col { border-right: 1px solid #d4ddd7; background: #eaf0ec; }
+      .tabulator .tabulator-header .tabulator-col.tabulator-sortable:hover { background: #dfe9e3; }
+      .tabulator-row { border-bottom: 1px solid #edf0ed; background: white; }
+      .tabulator-row.tabulator-row-even { background: #fafbf9; }
+      .tabulator-row:hover { background: #eef6f1 !important; }
+      .tabulator .tabulator-cell.dx-selected-cell { outline: 2px solid #197653; outline-offset: -2px; background: #dff2e8 !important; }
+      .tabulator-row.dx-selected-row .tabulator-cell { background: #e4f2eb !important; }
+      .tabulator .tabulator-cell.dx-selected-column { background: #edf6f1 !important; }
+      .tabulator .tabulator-header .tabulator-col.dx-selected-column { background: #cde6d9 !important; box-shadow: inset 0 -3px #197653; }
+      .tabulator .tabulator-header .tabulator-col .tabulator-col-content .tabulator-header-filter { margin-top: 7px; }
+      .tabulator .tabulator-header input { padding: 4px 6px; border: 1px solid #c5d1ca; border-radius: 5px; background: #fff; }
+      .tabulator-group { background: #f0f5f2 !important; color: var(--green) !important; }
+      .context-menu {
+        position: fixed; z-index: 50; display: none; width: 240px; padding: 6px; border: 1px solid #bfcac3;
+        border-radius: 9px; background: white; box-shadow: 0 14px 38px #172c2533;
+      }
+      .context-menu.show { display: block; }
+      .context-caption { padding: 7px 9px 5px; overflow: hidden; color: var(--muted); font-size: 10px; text-overflow: ellipsis; white-space: nowrap; }
+      .context-action {
+        width: 100%; padding: 9px; border: 0; border-radius: 6px; background: transparent; color: var(--ink); text-align: left; font-weight: 650; font-size: 12px;
+      }
+      .context-action:hover { background: var(--green-soft); color: var(--green); }
+      @media (max-width: 840px) {
+        header { padding: 14px 16px; }
+        .header-actions .ghost { display: none; }
+        .toolbar { grid-template-columns: 1fr 1fr; padding: 12px 16px; }
+        .main { grid-template-columns: 1fr; }
+        .main.inspector-collapsed { grid-template-columns: 1fr; }
+        .table-stage { padding: 12px 0 12px 16px; }
+        aside { border-top: 1px solid var(--line); border-left: 0; }
+        .main.inspector-collapsed aside { height: 44px; }
+      }
+      @media (max-width: 520px) {
+        .toolbar { grid-template-columns: 1fr; }
+        .subtitle { max-width: 160px; }
+        .header-actions { gap: 5px; }
+        .button { padding: 8px 9px; }
+      }
+    </style>
+  </head>
+  <body>
+    <div class="app">
+      <header>
+        <div class="brand">
+          <div class="brand-mark">D/X</div>
+          <div><h1>Dataset Explorer</h1><div class="subtitle" id="file-name">只读 CSV / TSV 数据工作台</div></div>
+        </div>
+        <div class="header-actions">
+          <button class="button ghost" id="sample-btn" type="button">示例数据</button>
+          <button class="button ghost" id="reference-btn" type="button">添加到对话</button>
+          <button class="button primary" id="open-btn" type="button">打开文件</button>
+          <input id="file-input" type="file" accept=".csv,.tsv,text/csv,text/tab-separated-values,text/plain" />
+        </div>
+      </header>
+      <section class="toolbar" aria-label="数据操作">
+        <div class="control"><label for="search">全表搜索</label><input id="search" type="search" placeholder="搜索任意字段值…" /></div>
+        <div class="control"><label for="group">分组</label><select id="group"><option value="">不分组</option></select></div>
+        <div class="control"><label for="profile-mode">右侧面板</label><select id="profile-mode"><option value="profile">字段画像</option><option value="cluster">文本聚类</option></select></div>
+        <button class="button" id="clear-btn" type="button">清除筛选</button>
+      </section>
+      <main class="main" id="main-layout">
+        <section class="table-stage">
+          <div class="dataset-meta">
+            <span class="meta-pill"><strong id="visible-count">0</strong> / <span id="row-count">0</span> 行</span>
+            <span class="meta-pill"><strong id="column-count">0</strong> 列</span>
+            <span id="delimiter-label">等待数据</span>
+            <span>点击单元格、行号或列头选择，右键添加到对话</span>
+          </div>
+          <div id="table" aria-label="数据表格"></div>
+        </section>
+        <aside id="inspector">
+          <div class="aside-title"><h2>字段画像</h2><span id="selected-label">未选择</span><button class="icon-button" id="inspector-toggle" type="button" aria-label="收起右侧面板" aria-expanded="true">›</button></div>
+          <div id="inspector-content" class="empty">打开文件后，点击字段列表或表头查看统计信息。</div>
+        </aside>
+      </main>
+    </div>
+    <div class="drop-overlay">将 CSV / TSV 文件拖放到这里</div>
+    <div class="toast" id="toast" role="status"></div>
+    <div class="context-menu" id="context-menu" role="menu">
+      <div class="context-caption" id="context-caption"></div>
+      <button class="context-action" id="add-selection" type="button" role="menuitem">添加到对话栏</button>
+    </div>
+
+    <script src="node_modules/papaparse/papaparse.min.js"></script>
+    <script src="node_modules/tabulator-tables/dist/js/tabulator.min.js"></script>
+    <script>
+      const $ = (selector) => document.querySelector(selector)
+      const state = { rows: [], fields: [], types: {}, fileName: "", delimiter: ",", selected: "", table: null, selection: null, sourcePath: "" }
+      let referenceID
+      let toastTimer
+
+      function toast(message) {
+        const node = $("#toast")
+        node.textContent = message
+        node.classList.add("show")
+        clearTimeout(toastTimer)
+        toastTimer = setTimeout(() => node.classList.remove("show"), 2800)
+      }
+
+      function formatNumber(value, digits = 2) {
+        if (!Number.isFinite(value)) return "—"
+        return new Intl.NumberFormat("zh-CN", { maximumFractionDigits: digits }).format(value)
+      }
+
+      function inferType(field) {
+        const values = state.rows.map((row) => row[field]).filter((value) => value !== "" && value != null).slice(0, 1000)
+        if (!values.length) return "empty"
+        if (values.every((value) => !Number.isNaN(Number(value)))) return "number"
+        if (values.every((value) => /^(true|false|yes|no|0|1)$/i.test(String(value)))) return "boolean"
+        if (values.every((value) => !Number.isNaN(Date.parse(value)) && /[-/:]/.test(String(value)))) return "date"
+        return "text"
+      }
+
+      function typeFormatter(cell) {
+        const value = cell.getValue()
+        const type = state.types[cell.getField()]
+        if (value === "" || value == null) return '<span style="color:#a4aea8">∅</span>'
+        if (type === "number") return `<span style="font-family:ui-monospace,monospace">${escapeHTML(value)}</span>`
+        return escapeHTML(value)
+      }
+
+      function escapeHTML(value) {
+        const div = document.createElement("div")
+        div.textContent = String(value)
+        return div.innerHTML
+      }
+
+      function escapeAttr(value) {
+        return escapeHTML(value).replaceAll('"', "&quot;")
+      }
+
+      function uniqueFields(rawFields) {
+        const seen = new Map()
+        return rawFields.map((field, index) => {
+          const base = String(field || `column_${index + 1}`).trim()
+          const count = (seen.get(base) || 0) + 1
+          seen.set(base, count)
+          return count === 1 ? base : `${base}_${count}`
+        })
+      }
+
+      function loadText(text, fileName = "dataset.csv") {
+        const preferredDelimiter = fileName.toLowerCase().endsWith(".tsv") ? "\t" : ""
+        const parsed = Papa.parse(text, {
+          header: true,
+          skipEmptyLines: "greedy",
+          delimiter: preferredDelimiter,
+          transformHeader: (header) => header.trim(),
+        })
+        if (!parsed.meta.fields?.length) throw new Error("没有识别到表头，请确认文件第一行包含字段名。")
+        if (parsed.errors.length && !parsed.data.length) throw new Error(parsed.errors[0].message)
+
+        const fields = uniqueFields(parsed.meta.fields)
+        const originalFields = parsed.meta.fields
+        state.rows = parsed.data.map((row, index) => {
+          const clean = { _row_id: index + 1 }
+          fields.forEach((field, fieldIndex) => { clean[field] = row[originalFields[fieldIndex]] ?? "" })
+          return clean
+        })
+        state.fields = fields
+        state.fileName = fileName
+        state.delimiter = parsed.meta.delimiter
+        state.types = Object.fromEntries(fields.map((field) => [field, inferType(field)]))
+        state.selected = fields[0]
+        renderDataset()
+        if (parsed.errors.length) toast(`已载入，解析器报告 ${parsed.errors.length} 个非致命问题`)
+      }
+
+      function renderDataset() {
+        state.table?.destroy()
+        state.selection = null
+        const columns = state.fields.map((field) => ({
+          title: escapeHTML(field),
+          field,
+          sorter: state.types[field] === "number" ? "number" : "string",
+          headerFilter: "input",
+          headerFilterPlaceholder: "筛选…",
+          formatter: typeFormatter,
+          minWidth: 140,
+          headerClick: () => selectColumn(field),
+          headerContext: (event) => {
+            event.preventDefault()
+            selectColumn(field)
+            showContextMenu(event)
+          },
+          cellClick: (_, cell) => selectCell(cell),
+          cellContext: (event, cell) => {
+            event.preventDefault()
+            selectCell(cell)
+            showContextMenu(event)
+          },
+        }))
+        state.table = new Tabulator("#table", {
+          data: state.rows,
+          index: "_row_id",
+          columns,
+          height: "100%",
+          layout: "fitDataStretch",
+          renderVertical: "virtual",
+          placeholder: "没有符合筛选条件的数据",
+          rowHeader: {
+            formatter: "rownum", width: 52, hozAlign: "right", headerSort: false, frozen: true,
+            cellClick: (_, cell) => selectRow(cell.getRow()),
+            cellContext: (event, cell) => {
+              event.preventDefault()
+              selectRow(cell.getRow())
+              showContextMenu(event)
+            },
+          },
+        })
+        state.table.on("dataFiltered", (_, rows) => { $("#visible-count").textContent = rows.length })
+        state.table.on("tableBuilt", () => { $("#visible-count").textContent = state.rows.length })
+        $("#row-count").textContent = formatNumber(state.rows.length, 0)
+        $("#column-count").textContent = state.fields.length
+        $("#file-name").textContent = state.fileName
+        $("#delimiter-label").textContent = `分隔符：${state.delimiter === "\t" ? "Tab" : state.delimiter || "自动"}`
+        $("#group").innerHTML = '<option value="">不分组</option>' + state.fields.map((field) => `<option value="${escapeAttr(field)}">${escapeHTML(field)}</option>`).join("")
+        selectField(state.selected)
+        window.opencodeArtifact?.setTitle(`${state.fileName} · Dataset Explorer`).catch(() => {})
+      }
+
+      function clearSelectionVisuals() {
+        document.querySelectorAll(".dx-selected-cell, .dx-selected-row, .dx-selected-column").forEach((node) => {
+          node.classList.remove("dx-selected-cell", "dx-selected-row", "dx-selected-column")
+        })
+      }
+
+      function selectCell(cell) {
+        clearSelectionVisuals()
+        const field = cell.getField()
+        const row = cell.getRow().getData()
+        state.selection = { type: "cell", field, rowId: row._row_id, value: row[field] }
+        cell.getElement().classList.add("dx-selected-cell")
+        state.selected = field
+        selectField(field)
+      }
+
+      function selectRow(rowComponent) {
+        clearSelectionVisuals()
+        const row = rowComponent.getData()
+        state.selection = { type: "row", rowId: row._row_id, data: row }
+        rowComponent.getElement().classList.add("dx-selected-row")
+      }
+
+      function selectColumn(field) {
+        clearSelectionVisuals()
+        state.selection = { type: "column", field }
+        const column = state.table?.getColumn(field)
+        column?.getElement().classList.add("dx-selected-column")
+        column?.getCells().forEach((cell) => cell.getElement().classList.add("dx-selected-column"))
+        selectField(field)
+      }
+
+      function selectionCaption() {
+        const selection = state.selection
+        if (!selection) return "未选择数据"
+        if (selection.type === "cell") return `单元格 · 第 ${selection.rowId} 行 · ${selection.field}`
+        if (selection.type === "row") return `整行 · 第 ${selection.rowId} 行`
+        return `整列 · ${selection.field}`
+      }
+
+      function showContextMenu(event) {
+        const menu = $("#context-menu")
+        $("#context-caption").textContent = selectionCaption()
+        menu.classList.add("show")
+        requestAnimationFrame(() => {
+          const left = Math.min(event.clientX, window.innerWidth - menu.offsetWidth - 8)
+          const top = Math.min(event.clientY, window.innerHeight - menu.offsetHeight - 8)
+          menu.style.left = `${Math.max(8, left)}px`
+          menu.style.top = `${Math.max(8, top)}px`
+        })
+      }
+
+      function selectionReference() {
+        const selection = state.selection
+        if (!selection) return null
+        if (selection.type === "cell") {
+          return {
+            label: `${state.fileName} · ${selection.field} 单元格`,
+            location: `Dataset Explorer / row ${selection.rowId} / ${selection.field}`,
+            value: { file: state.fileName, selection: "cell", row: selection.rowId, column: selection.field, value: selection.value },
+          }
+        }
+        if (selection.type === "row") {
+          const { _row_id, ...data } = selection.data
+          return {
+            label: `${state.fileName} · 第 ${selection.rowId} 行`,
+            location: `Dataset Explorer / row ${selection.rowId}`,
+            value: { file: state.fileName, selection: "row", row: selection.rowId, data },
+          }
+        }
+        const activeRows = state.table?.getData("active") || state.rows
+        const values = activeRows.slice(0, 500).map((row) => row[selection.field])
+        return {
+          label: `${state.fileName} · ${selection.field} 列`,
+          location: `Dataset Explorer / column ${selection.field}`,
+          value: {
+            file: state.fileName,
+            selection: "column",
+            column: selection.field,
+            type: state.types[selection.field],
+            statistics: getStats(selection.field),
+            visibleRows: activeRows.length,
+            values,
+            truncated: activeRows.length > values.length,
+          },
+        }
+      }
+
+      async function addSelectionToConversation() {
+        if (!window.opencodeConversation) return toast("当前环境不支持添加对话引用")
+        const reference = selectionReference()
+        if (!reference) return toast("请先选择单元格、行或列")
+        try {
+          let text = JSON.stringify(reference.value, null, 2)
+          if (text.length > 95000) text = text.slice(0, 95000) + "\n…内容已截断"
+          await window.opencodeConversation.addReference({
+            idempotencyKey: crypto.randomUUID(),
+            label: reference.label.slice(0, 200),
+            location: reference.location.slice(0, 500),
+            text,
+          })
+          $("#context-menu").classList.remove("show")
+          toast(`${selectionCaption()} 已添加到对话`)
+        } catch (error) { toast(error.message) }
+      }
+
+      function getStats(field) {
+        const all = state.rows.map((row) => row[field])
+        const values = all.filter((value) => value !== "" && value != null)
+        const counts = new Map()
+        values.forEach((value) => counts.set(String(value), (counts.get(String(value)) || 0) + 1))
+        const top = [...counts.entries()].sort((a, b) => b[1] - a[1]).slice(0, 8)
+        const numeric = state.types[field] === "number" ? values.map(Number).sort((a, b) => a - b) : []
+        const mean = numeric.length ? numeric.reduce((sum, value) => sum + value, 0) / numeric.length : NaN
+        const variance = numeric.length ? numeric.reduce((sum, value) => sum + (value - mean) ** 2, 0) / numeric.length : NaN
+        return {
+          count: values.length,
+          missing: all.length - values.length,
+          unique: counts.size,
+          top,
+          min: numeric[0],
+          max: numeric[numeric.length - 1],
+          mean,
+          median: numeric.length ? (numeric[Math.floor((numeric.length - 1) / 2)] + numeric[Math.ceil((numeric.length - 1) / 2)]) / 2 : NaN,
+          std: Math.sqrt(variance),
+        }
+      }
+
+      function selectField(field) {
+        state.selected = field
+        if ($("#profile-mode").value === "cluster") renderClusters(field)
+        else renderProfile(field)
+      }
+
+      function renderProfile(field) {
+        const stats = getStats(field)
+        $(".aside-title h2").textContent = "字段画像"
+        $("#selected-label").textContent = field
+        const numericCards = state.types[field] === "number" ? `
+          <div class="section-title">数值统计</div><div class="cards">
+          ${card("最小值", formatNumber(stats.min))}${card("最大值", formatNumber(stats.max))}
+          ${card("平均值", formatNumber(stats.mean))}${card("中位数", formatNumber(stats.median))}
+          ${card("标准差", formatNumber(stats.std))}</div>` : ""
+        const maxCount = stats.top[0]?.[1] || 1
+        $("#inspector-content").innerHTML = `
+          <div class="cards">${card("类型", state.types[field])}${card("非空", formatNumber(stats.count, 0))}
+          ${card("缺失", formatNumber(stats.missing, 0))}${card("唯一值", formatNumber(stats.unique, 0))}</div>
+          ${numericCards}
+          <div class="section-title">高频值</div><div class="value-list">${stats.top.length ? stats.top.map(([value, count]) => `
+            <div class="value-item"><span class="name" title="${escapeAttr(value)}">${escapeHTML(value)}</span><span class="type">${count}</span>
+            <div class="bar"><i style="width:${count / maxCount * 100}%"></i></div></div>`).join("") : '<div class="empty">没有非空值</div>'}</div>
+          <div class="section-title">全部字段</div><div class="column-list">${state.fields.map((name) => `
+            <button class="column-item ${name === field ? "active" : ""}" data-field="${escapeAttr(name)}"><span class="name">${escapeHTML(name)}</span><span class="type">${state.types[name]}</span></button>`).join("")}</div>`
+        document.querySelectorAll(".column-item").forEach((node) => node.addEventListener("click", () => selectField(node.dataset.field)))
+      }
+
+      function card(label, value) {
+        return `<div class="stat-card"><div class="label">${label}</div><div class="value" title="${escapeAttr(value)}">${escapeHTML(value)}</div></div>`
+      }
+
+      function clusterKey(value) {
+        return String(value).toLocaleLowerCase().normalize("NFKD").replace(/[\s\p{P}\p{S}_]+/gu, "")
+      }
+
+      function renderClusters(field) {
+        $(".aside-title h2").textContent = "文本聚类"
+        $("#selected-label").textContent = field
+        if (state.types[field] !== "text") {
+          $("#inspector-content").innerHTML = '<div class="empty">文本聚类仅适用于文本字段。它会忽略大小写、空白与标点，寻找可能需要统一的近似值。</div>'
+          return
+        }
+        const groups = new Map()
+        state.rows.forEach((row) => {
+          const value = String(row[field] ?? "").trim()
+          if (!value) return
+          const key = clusterKey(value)
+          if (!groups.has(key)) groups.set(key, new Set())
+          groups.get(key).add(value)
+        })
+        const clusters = [...groups.values()].filter((values) => values.size > 1).sort((a, b) => b.size - a.size)
+        $("#inspector-content").innerHTML = clusters.length ? `<div class="cluster-list">${clusters.map((values) => `
+          <div class="cluster"><b>${values.size} 个近似写法</b><span>${[...values].map(escapeHTML).join(" · ")}</span></div>`).join("")}</div>` : '<div class="empty">没有发现仅在大小写、空白或标点上不同的值。</div>'
+      }
+
+      async function openLocalFile(file) {
+        if (!file) return
+        if (file.size > 100 * 1024 * 1024) toast("文件较大，浏览器解析可能需要一些时间")
+        try {
+          state.sourcePath = ""
+          $("#sample-btn").textContent = "示例数据"
+          loadText(await file.text(), file.name)
+        } catch (error) { toast(error.message) }
+      }
+
+      async function loadBuiltInSample() {
+        const response = await fetch("data/experimental_samples.csv")
+        if (!response.ok) throw new Error(`内置示例载入失败（${response.status}）`)
+        loadText(await response.text(), "experimental_samples.csv")
+      }
+
+      $("#open-btn").addEventListener("click", () => $("#file-input").click())
+      $("#file-input").addEventListener("change", (event) => openLocalFile(event.target.files[0]))
+      $("#sample-btn").addEventListener("click", async () => {
+        try {
+          if (!state.sourcePath) return await loadBuiltInSample()
+          loadText(await window.opencodeWorkspace.readText(state.sourcePath), state.sourcePath.split("/").pop())
+          toast("已重新载入 Workspace 文件")
+        } catch (error) { toast(error.message) }
+      })
+      $("#group").addEventListener("change", (event) => state.table?.setGroupBy(event.target.value || false))
+      $("#profile-mode").addEventListener("change", () => selectField(state.selected))
+      $("#inspector-toggle").addEventListener("click", () => {
+        const collapsed = $("#main-layout").classList.toggle("inspector-collapsed")
+        $("#inspector-toggle").textContent = collapsed ? "‹" : "›"
+        $("#inspector-toggle").setAttribute("aria-label", collapsed ? "展开右侧面板" : "收起右侧面板")
+        $("#inspector-toggle").setAttribute("aria-expanded", String(!collapsed))
+        setTimeout(() => state.table?.redraw(true), 0)
+      })
+      $("#add-selection").addEventListener("click", addSelectionToConversation)
+      document.addEventListener("click", (event) => {
+        if (!event.target.closest("#context-menu")) $("#context-menu").classList.remove("show")
+      })
+      document.addEventListener("keydown", (event) => {
+        if (event.key === "Escape") $("#context-menu").classList.remove("show")
+      })
+      window.addEventListener("blur", () => $("#context-menu").classList.remove("show"))
+      $("#clear-btn").addEventListener("click", () => {
+        $("#search").value = ""
+        $("#group").value = ""
+        state.table?.clearFilter(true)
+        state.table?.clearSort()
+        state.table?.setGroupBy(false)
+      })
+      $("#search").addEventListener("input", (event) => {
+        const query = event.target.value.trim().toLocaleLowerCase()
+        if (!query) state.table?.clearFilter(false)
+        else state.table?.setFilter((row) => state.fields.some((field) => String(row[field] ?? "").toLocaleLowerCase().includes(query)))
+      })
+      $("#reference-btn").addEventListener("click", async () => {
+        if (!window.opencodeConversation) return toast("当前环境不支持添加对话引用")
+        try {
+          if (referenceID) await window.opencodeConversation.removeReference(referenceID)
+          const stats = state.selected ? getStats(state.selected) : null
+          referenceID = await window.opencodeConversation.addReference({
+            idempotencyKey: crypto.randomUUID(),
+            label: `${state.fileName || "Dataset"} 数据摘要`,
+            location: `Dataset Explorer / ${state.selected || "overview"}`,
+            text: JSON.stringify({ file: state.fileName, rows: state.rows.length, columns: state.fields, selectedField: state.selected, selectedType: state.types[state.selected], statistics: stats }, null, 2),
+          })
+          toast("当前数据摘要已添加到对话")
+        } catch (error) { toast(error.message) }
+      })
+      document.addEventListener("dragover", (event) => { event.preventDefault(); document.body.classList.add("dragging") })
+      document.addEventListener("dragleave", (event) => { if (!event.relatedTarget) document.body.classList.remove("dragging") })
+      document.addEventListener("drop", (event) => { event.preventDefault(); document.body.classList.remove("dragging"); openLocalFile(event.dataTransfer.files[0]) })
+
+      window.opencodeArtifact?.exposeOperations({
+        load_sample: {
+          description: "Load the built-in 100-row example CSV dataset",
+          inputSchema: { type: "object", properties: {}, additionalProperties: false },
+          outputSchema: { type: "object", properties: { loaded: { type: "boolean" } }, required: ["loaded"], additionalProperties: false },
+          run: async () => { await loadBuiltInSample(); return { loaded: true } },
+        },
+        get_summary: {
+          description: "Return a summary of the currently loaded dataset and selected field",
+          inputSchema: { type: "object", properties: {}, additionalProperties: false },
+          run: () => ({ file: state.fileName, rows: state.rows.length, fields: state.fields, selected: state.selected, stats: state.selected ? getStats(state.selected) : null }),
+        },
+      })
+
+      async function initialize() {
+        try {
+          const inputs = await window.opencodeArtifact?.getOpenInputs()
+          if (inputs?.source?.path && window.opencodeWorkspace) {
+            state.sourcePath = inputs.source.path
+            $("#sample-btn").textContent = "重新载入文件"
+            loadText(await window.opencodeWorkspace.readText(state.sourcePath), state.sourcePath.split("/").pop())
+            return
+          }
+        } catch (error) { toast(`无法读取 Workspace 文件：${error.message}`) }
+        try { await loadBuiltInSample() } catch (error) { toast(error.message) }
+      }
+      initialize()
+    </script>
+  </body>
+</html>

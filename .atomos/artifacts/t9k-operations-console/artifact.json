@@ -1,0 +1,61 @@
+{
+  "version": 2,
+  "id": "t9k-operations-console",
+  "name": "T9K Operations Console",
+  "description": "Inspect T9K resources and manage the reviewed kubectl-over-SSH connection workflow.",
+  "entry": "index.html",
+  "routing": "spa",
+  "open": {
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "kubeconfig": {
+          "type": "object",
+          "description": "A standard Kubernetes kubeconfig file. The file is read only for this Artifact instance.",
+          "x-opencode-kind": "workspace-file",
+          "accept": [".kubeconfig", ".yaml", ".yml", ".json"]
+        },
+        "proxyUrl": {
+          "type": "string",
+          "description": "Optional Kubernetes API or trusted local proxy URL.",
+          "maxLength": 8192
+        },
+        "namespace": {
+          "type": "string",
+          "description": "Namespace to select after connecting.",
+          "maxLength": 253
+        },
+        "autoConnect": {
+          "type": "boolean",
+          "description": "Connect immediately after reading the supplied inputs."
+        }
+      },
+      "additionalProperties": false
+    }
+  },
+  "capabilities": {
+    "workspace": {
+      "read": [
+        "t9k-test/manifests/*.yaml",
+        "headlamp-local/artifact-kubeconfig.yaml",
+        ".atomos/artifact-data/workspace/t9k-operations-console/**"
+      ],
+      "write": [
+        ".atomos/artifact-data/workspace/t9k-operations-console/**"
+      ]
+    },
+    "agent": {
+      "compose": true,
+      "send": false,
+      "receive": false
+    },
+    "network": "unrestricted"
+  },
+  "home": {
+    "quickAccess": true
+  },
+  "data": {
+    "schemaVersion": 1
+  },
+  "services": []
+}

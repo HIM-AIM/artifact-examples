@@ -1,0 +1,38 @@
+{
+  "version": 2,
+  "id": "dataset-explorer",
+  "name": "Dataset Explorer",
+  "description": "Read-only CSV and TSV exploration with sorting, filtering, grouping, profiling, and text clustering.",
+  "entry": "index.html",
+  "routing": "files",
+  "open": {
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "source": {
+          "type": "object",
+          "description": "CSV or TSV file to inspect.",
+          "x-opencode-kind": "workspace-file",
+          "accept": [".csv", ".tsv", "text/csv", "text/plain"]
+        }
+      },
+      "additionalProperties": false
+    }
+  },
+  "capabilities": {
+    "workspace": {
+      "read": [".atomos/artifact-data/workspace/dataset-explorer/**"],
+      "write": []
+    },
+    "agent": {
+      "compose": false,
+      "send": false
+    },
+    "network": false
+  },
+  "home": {
+    "quickAccess": true
+  },
+  "data": { "schemaVersion": 1 },
+  "services": []
+}

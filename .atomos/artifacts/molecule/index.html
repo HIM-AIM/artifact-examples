@@ -1,0 +1,78 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Molecule</title>
+    <link rel="stylesheet" href="vendor/molstar/molstar.css" />
+    <link rel="stylesheet" href="styles.css" />
+  </head>
+  <body>
+    <main class="app-shell">
+      <section class="viewer-section" aria-label="Molecular structure viewer">
+        <div id="molstar-viewer"></div>
+        <div id="empty-state" class="empty-state">
+          <div class="mark" aria-hidden="true">Cα</div>
+          <h1>Molecule</h1>
+          <p>Open a <code>.pdb</code>, <code>.cif</code>, or <code>.mmcif</code> structure from this Workspace.</p>
+          <button id="choose-workspace-file" class="file-button" type="button">Choose from Workspace</button>
+        </div>
+        <div id="loading" class="loading" hidden>Building molecular scene...</div>
+        <div id="highlight-overlay" class="highlight-overlay">
+          <div id="selection-box" class="selection-box" hidden></div>
+        </div>
+        <div class="viewer-tools" aria-label="Molecular highlight controls">
+          <button id="canvas-highlight-mode" class="tool-button" type="button" disabled>Highlight residues</button>
+          <button id="clear-canvas-highlight" class="tool-button" type="button" disabled>Clear highlight</button>
+          <span id="canvas-hint" class="canvas-hint">Load a structure to enable picking</span>
+        </div>
+      </section>
+
+      <section class="sequence-section">
+        <header class="sequence-header">
+          <div>
+            <div class="eyebrow">Structure sequence</div>
+            <h2 id="structure-title">No structure loaded</h2>
+          </div>
+          <div class="header-actions">
+            <span id="selection-count" class="selection-count">0 residues selected</span>
+            <button id="clear-selection" class="button secondary" type="button" disabled>Clear all</button>
+            <button id="add-reference" class="button primary" type="button" disabled>Add to conversation</button>
+            <button id="open-workspace-file" class="button secondary" type="button">Open file</button>
+          </div>
+        </header>
+
+        <div id="status" class="status" role="status">Waiting for a structure.</div>
+        <div class="sequence-tools">
+          <div id="chain-controls" class="chain-controls" aria-label="Chain controls"></div>
+          <form id="residue-locator" class="residue-locator">
+            <label>Chain <select id="locate-chain"></select></label>
+            <label>Residue <input id="locate-index" type="number" step="1" placeholder="Index" /></label>
+            <button class="mini-button" type="submit">Locate</button>
+          </form>
+        </div>
+        <div id="chains" class="chains" aria-live="polite"></div>
+      </section>
+    </main>
+
+    <dialog id="workspace-picker" class="workspace-picker">
+      <form method="dialog" class="picker-shell">
+        <header class="picker-header">
+          <div><div class="eyebrow">Workspace</div><h3>Open structure</h3></div>
+          <button class="icon-button" value="cancel" aria-label="Close">×</button>
+        </header>
+        <div class="picker-search-row">
+          <input id="workspace-filter" type="search" placeholder="Filter by path" autocomplete="off" />
+          <button id="refresh-workspace-files" class="button secondary" type="button">Refresh</button>
+        </div>
+        <div id="workspace-files" class="workspace-files"></div>
+        <div class="picker-path-row">
+          <input id="workspace-path" type="text" placeholder="Or enter a Workspace-relative path" />
+          <button id="open-workspace-path" class="button primary" type="button">Open</button>
+        </div>
+      </form>
+    </dialog>
+    <script src="vendor/molstar/molstar.js"></script>
+    <script src="app.js"></script>
+  </body>
+</html>

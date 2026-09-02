@@ -1,0 +1,950 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>T9K Operations Console</title>
+    <style>
+      :root {
+        color-scheme: light;
+        --ink: #142033;
+        --muted: #697386;
+        --paper: #f4f0e7;
+        --panel: #fffdf7;
+        --line: #d7d0c2;
+        --navy: #102a43;
+        --blue: #1d5f8a;
+        --cyan: #67c3c8;
+        --orange: #ee7d43;
+        --green: #2e7d5b;
+        --red: #b94a48;
+        --shadow: 0 14px 34px rgba(20, 32, 51, .09);
+        font-family: Inter, ui-sans-serif, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      }
+
+      * { box-sizing: border-box; }
+      body { background: var(--paper); color: var(--ink); margin: 0; min-height: 100vh; }
+      button, input, select, textarea { font: inherit; }
+      button { cursor: pointer; }
+      button:disabled { cursor: wait; opacity: .55; }
+
+      .app { display: grid; grid-template-columns: 238px 1fr; min-height: 100vh; }
+      .rail {
+        background: var(--navy);
+        color: #f8fbfd;
+        display: flex;
+        flex-direction: column;
+        padding: 24px 16px;
+      }
+      .brand { border-bottom: 1px solid rgba(255,255,255,.14); padding: 0 8px 22px; }
+      .eyebrow { color: var(--cyan); font-size: 11px; font-weight: 800; letter-spacing: .18em; text-transform: uppercase; }
+      .brand h1 { font-family: Georgia, "Times New Roman", serif; font-size: 27px; font-weight: 500; margin: 7px 0 4px; }
+      .brand p { color: #aebfcd; font-size: 12px; line-height: 1.5; margin: 0; }
+      nav { display: grid; gap: 6px; margin-top: 22px; }
+      .nav-button {
+        align-items: center;
+        background: transparent;
+        border: 1px solid transparent;
+        border-radius: 9px;
+        color: #b8c8d5;
+        display: flex;
+        gap: 10px;
+        padding: 11px 12px;
+        text-align: left;
+        width: 100%;
+      }
+      .nav-button::before { background: currentColor; border-radius: 50%; content: ""; height: 6px; width: 6px; }
+      .nav-button:hover, .nav-button.active { background: rgba(255,255,255,.1); color: #fff; }
+      .nav-button.active { border-color: rgba(103,195,200,.45); }
+      .rail-footer { color: #8da3b5; font-size: 11px; line-height: 1.55; margin-top: auto; padding: 16px 8px 0; }
+      .rail-toggle { align-items: center; background: rgba(255,255,255,.08); border: 1px solid rgba(255,255,255,.18); border-radius: 7px; color: #fff; display: flex; height: 32px; justify-content: center; margin: 14px 8px 0; width: calc(100% - 16px); }
+      .app.rail-collapsed { grid-template-columns: 82px 1fr; }
+      .app.rail-collapsed .brand h1, .app.rail-collapsed .brand p, .app.rail-collapsed .nav-button span, .app.rail-collapsed .rail-footer { display: none; }
+      .app.rail-collapsed .brand { padding-inline: 4px; }
+      .app.rail-collapsed .nav-button { justify-content: center; padding: 12px 5px; }
+      .app.rail-collapsed .nav-button::before { height: 8px; width: 8px; }
+
+      main { min-width: 0; padding: 30px clamp(18px, 4vw, 54px) 52px; }
+      .topbar { align-items: flex-start; display: flex; gap: 20px; justify-content: space-between; margin-bottom: 24px; }
+      .topbar h2 { font-family: Georgia, "Times New Roman", serif; font-size: clamp(28px, 4vw, 42px); font-weight: 500; letter-spacing: -.025em; margin: 0; }
+      .topbar p { color: var(--muted); line-height: 1.5; margin: 6px 0 0; }
+      .actions { display: flex; flex-wrap: wrap; gap: 8px; justify-content: flex-end; }
+      .button {
+        background: var(--navy);
+        border: 1px solid var(--navy);
+        border-radius: 8px;
+        color: #fff;
+        font-weight: 750;
+        padding: 9px 13px;
+      }
+      .button:hover { filter: brightness(1.12); }
+      .button.secondary { background: transparent; color: var(--navy); }
+      .button.orange { background: var(--orange); border-color: var(--orange); color: #2f160a; }
+      .button.small { font-size: 12px; padding: 7px 10px; }
+
+      .status-strip {
+        align-items: center;
+        background: #e9e2d5;
+        border: 1px solid var(--line);
+        border-radius: 10px;
+        display: flex;
+        font-size: 12px;
+        gap: 10px;
+        margin-bottom: 22px;
+        padding: 10px 13px;
+      }
+      .status-dot { background: #9c927f; border-radius: 50%; height: 9px; width: 9px; }
+      .status-strip.online .status-dot { background: var(--green); box-shadow: 0 0 0 4px rgba(46,125,91,.13); }
+      .status-strip.error .status-dot { background: var(--red); }
+      .status-strip strong { margin-right: 2px; }
+      #last-updated { color: var(--muted); margin-left: auto; }
+
+      .view { display: none; }
+      .view.active { display: block; }
+      .grid { display: grid; gap: 16px; grid-template-columns: repeat(12, minmax(0, 1fr)); }
+      .card {
+        background: var(--panel);
+        border: 1px solid var(--line);
+        border-radius: 13px;
+        box-shadow: var(--shadow);
+        min-width: 0;
+        padding: 20px;
+      }
+      .span-4 { grid-column: span 4; }
+      .span-5 { grid-column: span 5; }
+      .span-7 { grid-column: span 7; }
+      .span-8 { grid-column: span 8; }
+      .span-12 { grid-column: span 12; }
+      .card-label { color: var(--muted); font-size: 11px; font-weight: 800; letter-spacing: .13em; text-transform: uppercase; }
+      .metric { font-family: Georgia, "Times New Roman", serif; font-size: 43px; line-height: 1; margin: 12px 0 7px; }
+      .metric-note { color: var(--muted); font-size: 12px; }
+      .card h3 { font-family: Georgia, "Times New Roman", serif; font-size: 23px; font-weight: 500; margin: 5px 0 14px; }
+
+      .toolbar { align-items: center; display: flex; flex-wrap: wrap; gap: 9px; justify-content: space-between; margin-bottom: 13px; }
+      .toolbar h3 { margin: 0; }
+      .table-wrap { overflow-x: auto; }
+      table { border-collapse: collapse; font-size: 13px; width: 100%; }
+      th { border-bottom: 2px solid var(--ink); color: var(--muted); font-size: 10px; letter-spacing: .11em; padding: 9px 8px; text-align: left; text-transform: uppercase; }
+      td { border-bottom: 1px solid #e4ded3; padding: 12px 8px; vertical-align: top; }
+      tbody tr { cursor: pointer; }
+      tbody tr:hover, tbody tr.selected { background: #f0ece3; }
+      .pill { background: #e8eceb; border-radius: 999px; display: inline-block; font-size: 11px; font-weight: 750; padding: 4px 8px; }
+      .pill.good { background: #dceee5; color: #205f44; }
+      .empty { color: var(--muted); font-size: 13px; padding: 30px 8px; text-align: center; }
+
+      pre {
+        background: #101924;
+        border-radius: 10px;
+        color: #dbe7ee;
+        font: 12px/1.55 ui-monospace, SFMono-Regular, Menlo, monospace;
+        margin: 12px 0 0;
+        max-height: 420px;
+        overflow: auto;
+        padding: 15px;
+        white-space: pre-wrap;
+        word-break: break-word;
+      }
+      .manifest-list { display: flex; flex-wrap: wrap; gap: 8px; }
+      .manifest-button { background: #f3efe6; border: 1px solid var(--line); border-radius: 7px; color: var(--ink); padding: 8px 10px; }
+      .manifest-button.active { background: var(--navy); color: white; }
+      .error-text { color: var(--red); }
+      .muted { color: var(--muted); font-size: 13px; line-height: 1.55; }
+      .credential-input, .resource-editor, .confirm-input { background: #f8f5ee; border: 1px solid var(--line); border-radius: 8px; color: var(--ink); padding: 11px; width: 100%; }
+      .credential-input { min-height: 150px; resize: vertical; }
+      .resource-editor { font: 12px/1.5 ui-monospace, SFMono-Regular, Menlo, monospace; min-height: 380px; resize: vertical; }
+      .connection-meta { background: #f3efe6; border-radius: 8px; color: var(--muted); font: 11px/1.5 ui-monospace, SFMono-Regular, Menlo, monospace; margin-top: 12px; padding: 10px; word-break: break-all; }
+      .quota-grid { display: grid; gap: 10px; grid-template-columns: repeat(4, minmax(0, 1fr)); }
+      .quota-item { background: #f3efe6; border: 1px solid var(--line); border-radius: 9px; padding: 12px; }
+      .quota-item strong { display: block; font-size: 12px; margin-bottom: 5px; }
+      .quota-item span { color: var(--muted); font-size: 12px; }
+      .quota-bar { background: #ddd6c9; border-radius: 999px; height: 7px; margin-top: 9px; overflow: hidden; }
+      .quota-bar i { background: var(--green); display: block; height: 100%; min-width: 2px; }
+      .quota-item.warning .quota-bar i { background: var(--orange); }
+      .quota-item.full .quota-bar i { background: var(--red); }
+      dialog { background: var(--panel); border: 1px solid var(--line); border-radius: 12px; box-shadow: var(--shadow); color: var(--ink); max-width: 480px; padding: 22px; width: calc(100% - 32px); }
+      dialog::backdrop { background: rgba(16, 42, 67, .52); }
+      dialog h3 { font-family: Georgia, "Times New Roman", serif; font-size: 24px; font-weight: 500; margin: 0 0 10px; }
+      .command-flow { counter-reset: step; display: grid; gap: 12px; }
+      .command-step { border-left: 2px solid var(--line); padding: 3px 0 3px 42px; position: relative; }
+      .command-step::before { align-items: center; background: var(--orange); border-radius: 50%; color: #32160a; content: counter(step); counter-increment: step; display: flex; font-size: 12px; font-weight: 800; height: 27px; justify-content: center; left: -14px; position: absolute; top: 0; width: 27px; }
+      .command-step strong { display: block; font-size: 13px; margin-bottom: 4px; }
+      .command-step span { color: var(--muted); font-size: 12px; line-height: 1.5; }
+
+      @media (max-width: 980px) {
+        .app { grid-template-columns: 82px 1fr; }
+        .brand h1, .brand p, .nav-button span, .rail-footer { display: none; }
+        .brand { padding-inline: 4px; }
+        .nav-button { justify-content: center; padding: 12px 5px; }
+        .nav-button::before { height: 8px; width: 8px; }
+        .span-4, .span-5, .span-7, .span-8 { grid-column: span 6; }
+      }
+      @media (max-width: 680px) {
+        .app { display: block; }
+        .rail { min-height: auto; padding: 12px; }
+        .brand { border: 0; padding: 0 4px 10px; }
+        .brand h1 { display: block; font-size: 22px; }
+        nav { display: flex; margin: 0; overflow-x: auto; }
+        .nav-button { flex: 0 0 auto; padding: 8px 10px; }
+        .nav-button span { display: inline; }
+        main { padding-top: 22px; }
+        .topbar { display: block; }
+        .actions { justify-content: flex-start; margin-top: 15px; }
+        .span-4, .span-5, .span-7, .span-8, .span-12 { grid-column: span 12; }
+        .quota-grid { grid-template-columns: 1fr 1fr; }
+        #last-updated { display: none; }
+      }
+    </style>
+  </head>
+  <body>
+    <div class="app">
+      <aside class="rail">
+        <div class="brand">
+          <div class="eyebrow">TensorStack</div>
+          <h1>Ops Console</h1>
+          <p>Project-scoped controls for T9K and Kubernetes.</p>
+        </div>
+        <button class="rail-toggle" id="rail-toggle" type="button" aria-expanded="true" title="Collapse sidebar">‹</button>
+        <nav aria-label="Console sections">
+          <button class="nav-button active" data-view="overview"><span>Overview</span></button>
+          <button class="nav-button" data-view="resources"><span>Resources</span></button>
+          <button class="nav-button" data-view="connection"><span>Connection</span></button>
+          <button class="nav-button" data-view="manifests"><span>Manifests</span></button>
+          <button class="nav-button" data-view="diagnostics"><span>Diagnostics</span></button>
+        </nav>
+        <div class="rail-footer">Namespace<br><strong>aim-yyxdemo</strong><br><br>Context<br><strong>aim-yyxdemo-home</strong></div>
+      </aside>
+
+      <main>
+        <header class="topbar">
+          <div>
+            <div class="eyebrow">Project control surface</div>
+            <h2 id="view-title">Operational overview</h2>
+            <p id="view-subtitle">Live Kubernetes state through the reviewed Notebook bridge.</p>
+          </div>
+          <div class="actions">
+            <button class="button secondary" id="add-reference" type="button">Add to conversation</button>
+            <button class="button" id="refresh" type="button">Refresh live data</button>
+          </div>
+        </header>
+
+        <div class="status-strip" id="status-strip" role="status">
+          <span class="status-dot"></span>
+          <strong id="status-label">Bridge not checked</strong>
+          <span id="status-detail">Refresh to probe 127.0.0.1:18001.</span>
+          <span id="last-updated">Never refreshed</span>
+        </div>
+
+        <section class="view active" data-view-panel="overview">
+          <div class="grid">
+            <article class="card span-4">
+              <div class="card-label">Pods</div>
+              <div class="metric" id="pod-count">—</div>
+              <div class="metric-note" id="pod-note">Awaiting bridge</div>
+            </article>
+            <article class="card span-4">
+              <div class="card-label">Persistent volumes</div>
+              <div class="metric" id="pvc-count">—</div>
+              <div class="metric-note" id="pvc-note">Awaiting bridge</div>
+            </article>
+            <article class="card span-4">
+              <div class="card-label">Notebooks</div>
+              <div class="metric" id="notebook-count">—</div>
+              <div class="metric-note" id="notebook-note">Awaiting bridge</div>
+            </article>
+            <article class="card span-12">
+              <div class="card-label">Project quota</div>
+              <h3 id="quota-title">Reserved resources</h3>
+              <div class="quota-grid" id="quota-grid"><div class="muted">Connect to load T9K Project quota.</div></div>
+            </article>
+          </div>
+        </section>
+
+        <section class="view" data-view-panel="resources">
+          <div class="grid">
+            <article class="card span-12">
+              <div class="toolbar"><h3>Pods</h3><button class="button secondary small resource-reference" data-kind="Pod" type="button">Reference selected</button></div>
+              <div class="table-wrap"><table><thead><tr><th>Name</th><th>Phase</th><th>Node</th><th>Service account</th></tr></thead><tbody id="pods-body"></tbody></table></div>
+            </article>
+            <article class="card span-5">
+              <div class="toolbar"><h3>PVCs</h3><button class="button secondary small resource-reference" data-kind="PVC" type="button">Reference selected</button></div>
+              <div class="table-wrap"><table><thead><tr><th>Name</th><th>Status</th><th>Capacity</th></tr></thead><tbody id="pvcs-body"></tbody></table></div>
+            </article>
+            <article class="card span-7">
+              <div class="toolbar"><h3>Notebooks</h3><button class="button secondary small resource-reference" data-kind="Notebook" type="button">Reference selected</button></div>
+              <div class="table-wrap"><table><thead><tr><th>Name</th><th>Ready</th><th>Image</th></tr></thead><tbody id="notebooks-body"></tbody></table></div>
+            </article>
+            <article class="card span-12" id="resource-editor-card">
+              <div class="toolbar"><div><div class="card-label">Selected resource</div><h3 id="resource-editor-title">Choose a resource row</h3></div><div class="actions"><button class="button secondary small" id="new-resource" type="button">New JSON…</button><button class="button secondary small" id="reload-selected" type="button" disabled>Reload</button><button class="button small" id="save-selected" type="button" disabled>Save JSON</button><button class="button orange small" id="delete-selected" type="button" disabled>Delete…</button></div></div>
+              <textarea class="resource-editor" id="resource-editor" spellcheck="false" disabled>Select a Pod, PVC, or Notebook to inspect and manage it.</textarea>
+              <p class="muted">Updates use Kubernetes PUT with the current resourceVersion. Deletes require typing the exact resource name.</p>
+            </article>
+          </div>
+        </section>
+
+        <section class="view" data-view-panel="connection">
+          <div class="grid">
+            <article class="card span-12">
+              <div class="card-label">Runtime credentials</div>
+              <h3>Connect with kubeconfig</h3>
+              <p class="muted">Paste a standard Kubernetes kubeconfig, or open this Artifact with a kubeconfig workspace-file input. Credentials remain in this document's memory and are never saved to Artifact state.</p>
+              <select class="confirm-input" id="credential-source">
+                <option value="local">Local kubectl bridge (127.0.0.1:18001)</option>
+                <option value="builtin">Workspace compatibility profile</option>
+                <option value="opened" disabled>Opened kubeconfig file</option>
+                <option value="pasted">Pasted kubeconfig below</option>
+              </select>
+              <textarea class="credential-input" id="credential-input" spellcheck="false" placeholder="Paste kubeconfig YAML or JSON here" disabled></textarea>
+              <div class="actions" style="justify-content:flex-start;margin-top:12px">
+                <button class="button" id="connect-selected" type="button">Connect selected credential</button>
+                <button class="button secondary" id="clear-credentials" type="button">Clear credentials</button>
+              </div>
+              <div class="connection-meta" id="connection-meta">Mode: local bridge · http://127.0.0.1:18001 · namespace aim-yyxdemo</div>
+            </article>
+            <article class="card span-7">
+              <div class="card-label">Reviewed workflow</div>
+              <h3>Start the local Kubernetes bridge</h3>
+              <div class="command-flow">
+                <div class="command-step"><strong>T9K port forward</strong><span>Expose the Notebook SSH service only on Mac localhost:32222.</span></div>
+                <div class="command-step"><strong>SSH local forward</strong><span>Map Mac localhost:18001 to Notebook localhost:18080.</span></div>
+                <div class="command-step"><strong>In-Pod kubectl proxy</strong><span>Authenticate with the mounted managed-project-sa tokenFile and cluster CA.</span></div>
+                <div class="command-step"><strong>Health probe</strong><span>Read Kubernetes version, Pods and Notebook CRDs before reporting readiness.</span></div>
+              </div>
+              <div class="actions" style="justify-content:flex-start;margin-top:20px">
+                <button class="button orange" id="compose-start" type="button">Prepare start request</button>
+                <button class="button secondary" id="compose-stop" type="button">Prepare stop request</button>
+              </div>
+            </article>
+            <article class="card span-5">
+              <div class="card-label">Security boundary</div>
+              <h3>What this console will not do</h3>
+              <p class="muted">It never reads <code>t9k-test/t9k-config.yaml</code> or the SSH private key through broad Workspace grants. A kubeconfig file is readable only when explicitly supplied as an instance input. Tokens are held in memory, never persisted, logged, or added to conversation.</p>
+              <p class="muted">Background bridge startup is delegated to the Agent so job IDs, lifecycle and cancellation remain visible in the conversation.</p>
+            </article>
+          </div>
+        </section>
+
+        <section class="view" data-view-panel="manifests">
+          <article class="card">
+            <div class="toolbar"><h3>Active manifests</h3><span class="muted">Read-only Workspace access</span></div>
+            <div class="manifest-list" id="manifest-list"></div>
+            <pre id="manifest-content">Select a manifest to inspect it.</pre>
+          </article>
+        </section>
+
+        <section class="view" data-view-panel="diagnostics">
+          <div class="grid">
+            <article class="card span-5">
+              <div class="card-label">T9K CLI</div>
+              <h3>Bounded read check</h3>
+              <p class="muted">Runs the fixed <code>t9k notebook get</code> command in the Workspace root. Artifact Shell access must be enabled.</p>
+              <button class="button" id="cli-check" type="button">Run Notebook list</button>
+            </article>
+            <article class="card span-7">
+              <div class="card-label">Output</div>
+              <pre id="diagnostic-output">No diagnostic has run.</pre>
+            </article>
+          </div>
+        </section>
+      </main>
+    </div>
+
+    <dialog id="delete-dialog">
+      <h3>Confirm deletion</h3>
+      <p class="muted" id="delete-message">Type the exact resource name to continue.</p>
+      <input class="confirm-input" id="delete-confirm-name" autocomplete="off" spellcheck="false">
+      <div class="actions" style="margin-top:16px">
+        <button class="button secondary" id="cancel-delete" type="button">Cancel</button>
+        <button class="button orange" id="confirm-delete" type="button" disabled>Delete resource</button>
+      </div>
+    </dialog>
+    <dialog id="create-dialog">
+      <h3>Create resource</h3>
+      <p class="muted">Choose a supported kind and provide a complete Kubernetes JSON object. The namespace is fixed to the active connection.</p>
+      <select class="confirm-input" id="create-kind">
+        <option value="Pod">Pod</option>
+        <option value="PVC">PersistentVolumeClaim</option>
+        <option value="Notebook">T9K Notebook</option>
+      </select>
+      <textarea class="resource-editor" id="create-editor" spellcheck="false" style="min-height:260px;margin-top:10px"></textarea>
+      <div class="actions" style="margin-top:16px">
+        <button class="button secondary" id="cancel-create" type="button">Cancel</button>
+        <button class="button" id="confirm-create" type="button">Create resource</button>
+      </div>
+    </dialog>
+
+    <script>
+      const defaultNamespace = "aim-yyxdemo";
+      const defaultProxyBase = "http://127.0.0.1:18001";
+      const builtinKubeconfigPath = "headlamp-local/artifact-kubeconfig.yaml";
+      const views = {
+        overview: ["Operational overview", "Live Kubernetes state through the reviewed Notebook bridge."],
+        resources: ["Project resources", "Pods, storage and T9K custom resources in aim-yyxdemo."],
+        connection: ["Connection manager", "Prepare and review the ephemeral kubectl-over-SSH workflow."],
+        manifests: ["Manifest library", "Inspect active, non-sensitive Workspace YAML definitions."],
+        diagnostics: ["Diagnostics", "Run bounded read-only checks against the T9K CLI."],
+      };
+
+      const state = {
+        pods: [], pvcs: [], notebooks: [], project: null, quotaError: "", selected: null, selectedObject: null,
+        view: "overview", bridgeOnline: false, lastError: "", namespace: defaultNamespace,
+        baseUrl: defaultProxyBase, token: "", connectionSource: "local bridge", openedConfig: null,
+      };
+      const $ = (selector) => document.querySelector(selector);
+      const $$ = (selector) => [...document.querySelectorAll(selector)];
+      const escapeHtml = (value) => String(value ?? "").replace(/[&<>"']/g, (character) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[character]);
+
+      function errorDetails(error) {
+        const details = [error?.message || "Unknown error"];
+        if (error?.code !== undefined) details.push(`code=${error.code}`);
+        if (error?.data !== undefined) details.push(`data=${JSON.stringify(error.data)}`);
+        return details.join(" | ");
+      }
+
+      function connectionErrorDetails(error) {
+        if (error?.code === "request_failed" || /fetch failed/i.test(error?.message || "")) {
+          return `The local Kubernetes bridge at ${state.baseUrl} is not running or was disconnected. Restore the SSH/kubectl proxy from Connection, then refresh.`;
+        }
+        if (/HTTP 503/.test(error?.message || "")) {
+          return "The compatibility proxy is running, but its Kubernetes bridge upstream is unavailable. Restore the SSH/kubectl proxy, then refresh.";
+        }
+        return errorDetails(error);
+      }
+
+      function setView(name) {
+        if (!views[name]) return;
+        state.view = name;
+        $$(".nav-button").forEach((button) => button.classList.toggle("active", button.dataset.view === name));
+        $$(".view").forEach((panel) => panel.classList.toggle("active", panel.dataset.viewPanel === name));
+        $("#view-title").textContent = views[name][0];
+        $("#view-subtitle").textContent = views[name][1];
+        window.opencodeArtifact?.setTitle?.(`T9K · ${views[name][0]}`).catch(() => {});
+      }
+
+      function setConnection(status, label, detail) {
+        const strip = $("#status-strip");
+        strip.classList.toggle("online", status === "online");
+        strip.classList.toggle("error", status === "error");
+        $("#status-label").textContent = label;
+        $("#status-detail").textContent = detail;
+      }
+
+      async function apiRequest(path, method = "GET", body, extraHeaders = {}) {
+        if (!window.opencodeHttp?.request) throw new Error("Host HTTP API is unavailable. Open this page as an AtomOS Artifact.");
+        const headers = { ...extraHeaders };
+        if (state.token) headers.authorization = `Bearer ${state.token}`;
+        const response = await window.opencodeHttp.request({
+          url: `${state.baseUrl}${path}`,
+          method,
+          headers,
+          ...(body === undefined ? {} : { body }),
+        });
+        if (!response.ok) throw new Error(`HTTP ${response.status}: ${response.body.slice(0, 500)}`);
+        return response.body ? JSON.parse(response.body) : null;
+      }
+
+      function unquote(value) {
+        const trimmed = String(value || "").trim();
+        if ((trimmed.startsWith('"') && trimmed.endsWith('"')) || (trimmed.startsWith("'") && trimmed.endsWith("'"))) return trimmed.slice(1, -1);
+        return trimmed;
+      }
+
+      function parseKubeconfig(text) {
+        const source = String(text || "").trim();
+        if (!source) throw new Error("Kubeconfig is empty.");
+
+        try {
+          const config = JSON.parse(source);
+          if (!Array.isArray(config.clusters) || !Array.isArray(config.contexts) || !Array.isArray(config.users)) throw new Error("Not a Kubernetes kubeconfig.");
+          const current = config.contexts.find((item) => item.name === config["current-context"]) || config.contexts[0];
+          const cluster = config.clusters.find((item) => item.name === current?.context?.cluster) || config.clusters[0];
+          const user = config.users.find((item) => item.name === current?.context?.user) || config.users[0];
+          return {
+            server: cluster?.cluster?.server,
+            token: user?.user?.token || "",
+            namespace: current?.context?.namespace || defaultNamespace,
+          };
+        } catch (error) {
+          if (source.startsWith("{")) throw error;
+        }
+
+        if (!/^\s*kind:\s*Config\s*$/m.test(source) || !/^\s*clusters:\s*$/m.test(source) || !/^\s*contexts:\s*$/m.test(source)) {
+          throw new Error("Expected a standard Kubernetes kubeconfig, not a T9K config or private key.");
+        }
+        const server = source.match(/^\s*server:\s*(.+?)\s*$/m)?.[1];
+        const token = source.match(/^\s*token:\s*(.+?)\s*$/m)?.[1] || "";
+        const namespaceValue = source.match(/^\s*namespace:\s*(.+?)\s*$/m)?.[1] || defaultNamespace;
+        return { server: unquote(server), token: unquote(token), namespace: unquote(namespaceValue) };
+      }
+
+      function updateConnectionMeta() {
+        const auth = state.token ? "bearer token in memory" : "no browser-held token";
+        $("#connection-meta").textContent = `Mode: ${state.connectionSource} · ${state.baseUrl} · namespace ${state.namespace} · ${auth}`;
+      }
+
+      async function connectWithConfig(config, source) {
+        if (!config?.server || !/^https?:\/\//.test(config.server)) throw new Error("Kubeconfig cluster server must be an HTTP or HTTPS URL.");
+        state.baseUrl = config.server.replace(/\/$/, "");
+        state.token = config.token || "";
+        state.namespace = config.namespace || defaultNamespace;
+        state.connectionSource = source;
+        $("#credential-input").value = "";
+        updateConnectionMeta();
+        await refreshLiveData();
+      }
+
+      function useLocalBridge() {
+        state.baseUrl = defaultProxyBase;
+        state.token = "";
+        state.namespace = defaultNamespace;
+        state.connectionSource = "local bridge";
+        updateConnectionMeta();
+        return refreshLiveData();
+      }
+
+      async function connectSelectedCredential() {
+        const source = $("#credential-source").value;
+        if (source === "local") return useLocalBridge();
+        if (source === "builtin") {
+          const text = await window.opencodeWorkspace.readText(builtinKubeconfigPath);
+          return connectWithConfig(parseKubeconfig(text), "workspace compatibility profile");
+        }
+        if (source === "opened") {
+          if (!state.openedConfig) throw new Error("No kubeconfig file was supplied when this Artifact was opened.");
+          return connectWithConfig(state.openedConfig, "opened kubeconfig file");
+        }
+        if (source === "pasted") return connectWithConfig(parseKubeconfig($("#credential-input").value), "pasted kubeconfig");
+        throw new Error("Choose a credential source.");
+      }
+
+      function conditionReady(item) {
+        const conditions = item?.status?.conditions || [];
+        return conditions.some((condition) => condition.type === "Ready" && condition.status === "True");
+      }
+
+      function renderMetrics() {
+        $("#pod-count").textContent = state.pods.length;
+        $("#pvc-count").textContent = state.pvcs.length;
+        $("#notebook-count").textContent = state.notebooks.length;
+        $("#pod-note").textContent = `${state.pods.filter((item) => item.status?.phase === "Running").length} running`;
+        $("#pvc-note").textContent = `${state.pvcs.filter((item) => item.status?.phase === "Bound").length} bound`;
+        $("#notebook-note").textContent = `${state.notebooks.filter(conditionReady).length} ready`;
+      }
+
+      function renderQuota() {
+        const quota = state.project?.status?.resourceQuota;
+        if (!quota?.hard || !quota?.used) {
+          $("#quota-title").textContent = "Reserved resources";
+          $("#quota-grid").innerHTML = `<div class="muted">Project quota is unavailable${state.quotaError ? `: ${escapeHtml(state.quotaError)}` : " for this credential"}.</div>`;
+          return;
+        }
+        const fields = [
+          ["Pods", "pods"], ["CPU requests", "cpu"], ["Memory requests", "memory"],
+          ["Shared GPU", "requests.nvidia.com/gpu.shared"], ["Dedicated GPU", "requests.nvidia.com/gpu"],
+          ["Storage", "requests.storage"], ["CPU limits", "limits.cpu"], ["Memory limits", "limits.memory"],
+        ];
+        $("#quota-title").textContent = `Reserved resources · ${state.project?.spec?.quotaProfile || "project quota"}`;
+        $("#quota-grid").innerHTML = fields.map(([label, key]) => {
+          const used = quota.used[key] || "0";
+          const hard = quota.hard[key] || "0";
+          const percent = quantityRatio(used, hard);
+          const level = percent >= 100 ? "full" : percent >= 80 ? "warning" : "";
+          return `<div class="quota-item ${level}"><strong>${escapeHtml(label)}</strong><span>${escapeHtml(used)} / ${escapeHtml(hard)} · ${Number.isFinite(percent) ? `${percent.toFixed(1)}%` : "—"}</span><div class="quota-bar"><i style="width:${Math.min(100, Math.max(0, percent || 0))}%"></i></div></div>`;
+        }).join("");
+      }
+
+      function quantityValue(value) {
+        const match = String(value || "0").match(/^([0-9.]+)(m|Ki|Mi|Gi|Ti)?$/);
+        if (!match) return NaN;
+        const number = Number(match[1]);
+        const unit = match[2] || "";
+        const factors = { "": 1, m: .001, Ki: 1024, Mi: 1024 ** 2, Gi: 1024 ** 3, Ti: 1024 ** 4 };
+        return number * factors[unit];
+      }
+
+      function quantityRatio(used, hard) {
+        const denominator = quantityValue(hard);
+        return denominator > 0 ? quantityValue(used) / denominator * 100 : NaN;
+      }
+
+      function tableRows(items, renderer, emptyText) {
+        return items.length ? items.map(renderer).join("") : `<tr><td class="empty" colspan="4">${escapeHtml(emptyText)}</td></tr>`;
+      }
+
+      function renderResources() {
+        $("#pods-body").innerHTML = tableRows(state.pods, (pod) => {
+          const name = pod.metadata?.name || "unknown";
+          const selected = state.selected?.kind === "Pod" && state.selected.name === name;
+          return `<tr class="${selected ? "selected" : ""}" data-kind="Pod" data-name="${escapeHtml(name)}"><td>${escapeHtml(name)}</td><td><span class="pill ${pod.status?.phase === "Running" ? "good" : ""}">${escapeHtml(pod.status?.phase || "Unknown")}</span></td><td>${escapeHtml(pod.spec?.nodeName || "—")}</td><td>${escapeHtml(pod.spec?.serviceAccountName || "—")}</td></tr>`;
+        }, "No Pods returned.");
+        $("#pvcs-body").innerHTML = tableRows(state.pvcs, (pvc) => {
+          const name = pvc.metadata?.name || "unknown";
+          const selected = state.selected?.kind === "PVC" && state.selected.name === name;
+          return `<tr class="${selected ? "selected" : ""}" data-kind="PVC" data-name="${escapeHtml(name)}"><td>${escapeHtml(name)}</td><td><span class="pill ${pvc.status?.phase === "Bound" ? "good" : ""}">${escapeHtml(pvc.status?.phase || "Unknown")}</span></td><td>${escapeHtml(pvc.status?.capacity?.storage || "—")}</td></tr>`;
+        }, "No PVCs returned.");
+        $("#notebooks-body").innerHTML = tableRows(state.notebooks, (notebook) => {
+          const name = notebook.metadata?.name || "unknown";
+          const selected = state.selected?.kind === "Notebook" && state.selected.name === name;
+          const containers = notebook.spec?.template?.spec?.containers || [];
+          const image = containers[0]?.image || "—";
+          const ready = conditionReady(notebook);
+          return `<tr class="${selected ? "selected" : ""}" data-kind="Notebook" data-name="${escapeHtml(name)}"><td>${escapeHtml(name)}</td><td><span class="pill ${ready ? "good" : ""}">${ready ? "Ready" : "Unknown"}</span></td><td>${escapeHtml(image)}</td></tr>`;
+        }, "No Notebooks returned.");
+        $$("tbody tr[data-kind]").forEach((row) => row.addEventListener("click", () => {
+          const collection = row.dataset.kind === "Pod" ? state.pods : row.dataset.kind === "PVC" ? state.pvcs : state.notebooks;
+          state.selected = { kind: row.dataset.kind, name: row.dataset.name };
+          state.selectedObject = collection.find((item) => item.metadata?.name === row.dataset.name) || null;
+          renderResources();
+          renderResourceEditor();
+        }));
+      }
+
+      function selectedResourcePath() {
+        if (!state.selected) return null;
+        const name = encodeURIComponent(state.selected.name);
+        const ns = encodeURIComponent(state.namespace);
+        if (state.selected.kind === "Pod") return `/api/v1/namespaces/${ns}/pods/${name}`;
+        if (state.selected.kind === "PVC") return `/api/v1/namespaces/${ns}/persistentvolumeclaims/${name}`;
+        if (state.selected.kind === "Notebook") return `/apis/tensorstack.dev/v1beta1/namespaces/${ns}/notebooks/${name}`;
+        return null;
+      }
+
+      function resourceCollectionPath(kind) {
+        const ns = encodeURIComponent(state.namespace);
+        if (kind === "Pod") return `/api/v1/namespaces/${ns}/pods`;
+        if (kind === "PVC") return `/api/v1/namespaces/${ns}/persistentvolumeclaims`;
+        if (kind === "Notebook") return `/apis/tensorstack.dev/v1beta1/namespaces/${ns}/notebooks`;
+        return null;
+      }
+
+      function renderResourceEditor() {
+        const enabled = Boolean(state.selected && state.selectedObject);
+        $("#resource-editor-title").textContent = enabled ? `${state.selected.kind} · ${state.selected.name}` : "Choose a resource row";
+        $("#resource-editor").disabled = !enabled;
+        $("#reload-selected").disabled = !enabled;
+        $("#save-selected").disabled = !enabled;
+        $("#delete-selected").disabled = !enabled;
+        $("#resource-editor").value = enabled ? JSON.stringify(state.selectedObject, null, 2) : "Select a Pod, PVC, or Notebook to inspect and manage it.";
+      }
+
+      async function reloadSelected() {
+        const path = selectedResourcePath();
+        if (!path) return;
+        state.selectedObject = await apiRequest(path);
+        renderResourceEditor();
+      }
+
+      async function saveSelected() {
+        const path = selectedResourcePath();
+        if (!path) return;
+        const value = JSON.parse($("#resource-editor").value);
+        if (value?.metadata?.name !== state.selected.name) throw new Error("metadata.name cannot be changed.");
+        if ((value?.metadata?.namespace || state.namespace) !== state.namespace) throw new Error("metadata.namespace cannot be changed.");
+        state.selectedObject = await apiRequest(path, "PUT", JSON.stringify(value), { "content-type": "application/json" });
+        await refreshLiveData();
+        renderResourceEditor();
+      }
+
+      function openDeleteDialog() {
+        if (!state.selected) return;
+        $("#delete-message").textContent = `Type ${state.selected.name} to delete this ${state.selected.kind}. This cannot be undone.`;
+        $("#delete-confirm-name").value = "";
+        $("#confirm-delete").disabled = true;
+        $("#delete-dialog").showModal();
+      }
+
+      async function confirmDelete() {
+        const path = selectedResourcePath();
+        if (!path || $("#delete-confirm-name").value !== state.selected.name) return;
+        $("#confirm-delete").disabled = true;
+        try {
+          await apiRequest(path, "DELETE");
+          $("#delete-dialog").close();
+          state.selected = null;
+          state.selectedObject = null;
+          await refreshLiveData();
+          renderResourceEditor();
+        } catch (error) {
+          setConnection("error", "Delete failed", errorDetails(error));
+          $("#confirm-delete").disabled = false;
+        }
+      }
+
+      function fillCreateTemplate() {
+        const kind = $("#create-kind").value;
+        const api = kind === "Notebook" ? "tensorstack.dev/v1beta1" : "v1";
+        const resourceKind = kind === "PVC" ? "PersistentVolumeClaim" : kind;
+        $("#create-editor").value = JSON.stringify({ apiVersion: api, kind: resourceKind, metadata: { name: "", namespace: state.namespace }, spec: {} }, null, 2);
+      }
+
+      function openCreateDialog() {
+        fillCreateTemplate();
+        $("#create-dialog").showModal();
+      }
+
+      async function confirmCreate() {
+        const kind = $("#create-kind").value;
+        const path = resourceCollectionPath(kind);
+        const value = JSON.parse($("#create-editor").value);
+        if (!value?.metadata?.name) throw new Error("metadata.name is required.");
+        if ((value.metadata.namespace || state.namespace) !== state.namespace) throw new Error("metadata.namespace must match the active connection.");
+        value.metadata.namespace = state.namespace;
+        $("#confirm-create").disabled = true;
+        try {
+          await apiRequest(path, "POST", JSON.stringify(value), { "content-type": "application/json" });
+          $("#create-dialog").close();
+          await refreshLiveData();
+        } finally {
+          $("#confirm-create").disabled = false;
+        }
+      }
+
+      async function initializeConnection() {
+        let inputs = {};
+        try {
+          inputs = await window.opencodeArtifact?.getOpenInputs?.() || {};
+        } catch (error) {
+          setConnection("error", "Input unavailable", errorDetails(error));
+        }
+
+        let config = null;
+        if (inputs.kubeconfig?.path) {
+          const text = await window.opencodeWorkspace.readText(inputs.kubeconfig.path);
+          config = parseKubeconfig(text);
+          state.openedConfig = { ...config };
+          const option = $("#credential-source option[value='opened']");
+          option.disabled = false;
+          option.textContent = `Opened file · ${inputs.kubeconfig.path}`;
+          $("#credential-source").value = "opened";
+          state.connectionSource = `workspace file ${inputs.kubeconfig.path}`;
+        }
+        if (inputs.proxyUrl) {
+          config = { ...(config || {}), server: inputs.proxyUrl };
+          state.connectionSource = config?.token ? "input proxy with kubeconfig auth" : "input proxy";
+        }
+        if (inputs.namespace) config = { ...(config || { server: state.baseUrl }), namespace: inputs.namespace };
+
+        if (config) {
+          state.baseUrl = config.server.replace(/\/$/, "");
+          state.token = config.token || "";
+          state.namespace = config.namespace || defaultNamespace;
+        }
+        updateConnectionMeta();
+
+        if (inputs.autoConnect !== false) {
+          await refreshLiveData();
+        }
+      }
+
+      async function loadProject() {
+        const ns = encodeURIComponent(state.namespace);
+        const itemPath = `/apis/tensorstack.dev/v1beta1/namespaces/${ns}/projects/${encodeURIComponent(state.namespace)}`;
+        try {
+          return await apiRequest(itemPath);
+        } catch (itemError) {
+          try {
+            const list = await apiRequest(`/apis/tensorstack.dev/v1beta1/namespaces/${ns}/projects`);
+            const project = (list.items || []).find((item) => item.metadata?.name === state.namespace) || list.items?.[0];
+            if (!project) throw new Error("Project API returned no project objects.");
+            return project;
+          } catch (listError) {
+            throw new Error(`${errorDetails(itemError)}; fallback list failed: ${errorDetails(listError)}`);
+          }
+        }
+      }
+
+      async function refreshLiveData() {
+        const button = $("#refresh");
+        button.disabled = true;
+        setConnection("checking", "Checking connection", `Probing ${state.baseUrl}…`);
+        try {
+          const ns = encodeURIComponent(state.namespace);
+          const [version, pods, pvcs, notebooks] = await Promise.all([
+            apiRequest("/version"),
+            apiRequest(`/api/v1/namespaces/${ns}/pods`),
+            apiRequest(`/api/v1/namespaces/${ns}/persistentvolumeclaims`),
+            apiRequest(`/apis/tensorstack.dev/v1beta1/namespaces/${ns}/notebooks`),
+          ]);
+          const projectResult = await loadProject()
+            .then((value) => ({ value, error: "" }))
+            .catch((error) => ({ value: null, error: errorDetails(error) }));
+          state.pods = pods.items || [];
+          state.pvcs = pvcs.items || [];
+          state.notebooks = notebooks.items || [];
+          state.project = projectResult.value;
+          state.quotaError = projectResult.error;
+          state.bridgeOnline = true;
+          state.lastError = "";
+          if (state.selected) {
+            const collection = state.selected.kind === "Pod" ? state.pods : state.selected.kind === "PVC" ? state.pvcs : state.notebooks;
+            state.selectedObject = collection.find((item) => item.metadata?.name === state.selected.name) || state.selectedObject;
+          }
+          renderMetrics();
+          renderQuota();
+          renderResources();
+          renderResourceEditor();
+          setConnection("online", "Connected", `Kubernetes ${version.gitVersion || "reachable"} · ${state.connectionSource} · ${state.namespace}`);
+          $("#last-updated").textContent = `Updated ${new Date().toLocaleTimeString()}`;
+        } catch (error) {
+          state.bridgeOnline = false;
+          state.lastError = connectionErrorDetails(error);
+          setConnection("error", "Bridge unavailable", state.lastError);
+          $("#last-updated").textContent = "Refresh failed";
+        } finally {
+          button.disabled = false;
+        }
+      }
+
+      async function compose(text) {
+        if (!window.opencodeAgent?.compose) throw new Error("Agent Compose is unavailable.");
+        await window.opencodeAgent.compose({ text });
+      }
+
+      const startRequest = `Start the verified temporary Kubernetes bridge for T9K Notebook atomos-nb-test-20260825 in project aim-yyxdemo. Use workspace-local ./t9k-pf and t9k-test credentials to expose Notebook SSH on localhost:32222, then SSH-forward localhost:18001 to a kubectl proxy inside the Notebook. The remote proxy must bind only to 127.0.0.1, authenticate through /var/run/secrets/kubernetes.io/serviceaccount using tokenFile and ca.crt, and never print or copy the token. Allocate an SSH TTY, track the remote kubectl proxy PID, and install EXIT/HUP/INT/TERM cleanup so cancellation removes both the temporary kubeconfig and remote listener. Run both long-lived processes as auditable background jobs, verify /version plus Pods and notebooks through http://127.0.0.1:18001, and report both job IDs. Do not alter cluster resources.`;
+      const stopRequest = `Stop the temporary T9K Kubernetes bridge for localhost ports 18001 and 32222. Before cancelling the SSH and t9k-pf jobs, use the active SSH path to stop any kubectl proxy bound to Notebook localhost:18080 and verify that no matching remote listener remains. Then cancel both background jobs, treat exit code 143 from intentional cancellation as expected, and do not delete any Kubernetes or T9K resources.`;
+
+      async function addReference(kind, name) {
+        if (!window.opencodeConversation?.addReference) throw new Error("Conversation references are unavailable.");
+        const text = kind && name
+          ? `${kind} ${name} in T9K project ${state.namespace}. Selected in the T9K Operations Console.`
+          : `T9K Operations Console status: namespace=${state.namespace}, connection=${$("#status-label").textContent}, pods=${state.pods.length}, pvcs=${state.pvcs.length}, notebooks=${state.notebooks.length}.`;
+        await window.opencodeConversation.addReference({
+          idempotencyKey: `t9k-console-${kind || "summary"}-${name || Date.now()}`,
+          label: name ? `${kind}: ${name}` : "T9K console summary",
+          text,
+          location: `T9K Operations Console / ${state.view}`,
+        });
+      }
+
+      async function loadManifests() {
+        const list = $("#manifest-list");
+        if (!window.opencodeWorkspace?.list) {
+          list.innerHTML = '<span class="error-text">Workspace API unavailable.</span>';
+          return;
+        }
+        try {
+          const entries = (await window.opencodeWorkspace.list("t9k-test/manifests")).filter((entry) => entry.type === "file" && entry.name.endsWith(".yaml"));
+          list.innerHTML = entries.length ? entries.map((entry) => `<button class="manifest-button" data-path="${escapeHtml(entry.path)}" type="button">${escapeHtml(entry.name)}</button>`).join("") : '<span class="muted">No YAML manifests found.</span>';
+          $$(".manifest-button").forEach((button) => button.addEventListener("click", async () => {
+            $$(".manifest-button").forEach((item) => item.classList.toggle("active", item === button));
+            $("#manifest-content").textContent = "Loading…";
+            try {
+              $("#manifest-content").textContent = await window.opencodeWorkspace.readText(button.dataset.path);
+            } catch (error) {
+              $("#manifest-content").textContent = errorDetails(error);
+            }
+          }));
+        } catch (error) {
+          list.innerHTML = `<span class="error-text">${escapeHtml(errorDetails(error))}</span>`;
+        }
+      }
+
+      async function runCliCheck() {
+        const button = $("#cli-check");
+        const output = $("#diagnostic-output");
+        if (!window.opencodeShell?.run) {
+          output.textContent = "Shell API unavailable. Open as an Artifact and enable Artifact Shell access.";
+          return;
+        }
+        button.disabled = true;
+        output.textContent = "Running fixed read-only command…";
+        try {
+          const result = await window.opencodeShell.run({
+            command: "./t9k notebook get -c './t9k-test/t9k-config.yaml' -x 'aim-yyxdemo-home' -p 'aim-yyxdemo'",
+            timeout: 30000,
+          });
+          output.textContent = `Exit code: ${result.exitCode}\nTruncated: ${result.truncated ? "yes" : "no"}\n\n${result.stdout || "(no stdout)"}${result.stderr ? `\nSTDERR\n${result.stderr}` : ""}`;
+        } catch (error) {
+          output.textContent = errorDetails(error);
+        } finally {
+          button.disabled = false;
+        }
+      }
+
+      $$(".nav-button").forEach((button) => button.addEventListener("click", () => setView(button.dataset.view)));
+      $("#rail-toggle").addEventListener("click", () => {
+        const collapsed = $(".app").classList.toggle("rail-collapsed");
+        $("#rail-toggle").textContent = collapsed ? "›" : "‹";
+        $("#rail-toggle").title = collapsed ? "Expand sidebar" : "Collapse sidebar";
+        $("#rail-toggle").setAttribute("aria-expanded", String(!collapsed));
+      });
+      $("#refresh").addEventListener("click", refreshLiveData);
+      $("#connect-selected").addEventListener("click", () => connectSelectedCredential().catch((error) => setConnection("error", "Connection failed", errorDetails(error))));
+      $("#credential-source").addEventListener("change", () => {
+        $("#credential-input").disabled = $("#credential-source").value !== "pasted";
+      });
+      $("#clear-credentials").addEventListener("click", () => {
+        state.token = "";
+        $("#credential-input").value = "";
+        state.connectionSource = "credentials cleared";
+        updateConnectionMeta();
+        setConnection("", "Credentials cleared", "Choose local bridge or provide kubeconfig to reconnect.");
+      });
+      $("#reload-selected").addEventListener("click", () => reloadSelected().catch((error) => setConnection("error", "Reload failed", errorDetails(error))));
+      $("#save-selected").addEventListener("click", () => saveSelected().catch((error) => setConnection("error", "Update failed", errorDetails(error))));
+      $("#delete-selected").addEventListener("click", openDeleteDialog);
+      $("#new-resource").addEventListener("click", openCreateDialog);
+      $("#create-kind").addEventListener("change", fillCreateTemplate);
+      $("#cancel-create").addEventListener("click", () => $("#create-dialog").close());
+      $("#confirm-create").addEventListener("click", () => confirmCreate().catch((error) => setConnection("error", "Create failed", errorDetails(error))));
+      $("#cancel-delete").addEventListener("click", () => $("#delete-dialog").close());
+      $("#delete-confirm-name").addEventListener("input", () => {
+        $("#confirm-delete").disabled = !state.selected || $("#delete-confirm-name").value !== state.selected.name;
+      });
+      $("#confirm-delete").addEventListener("click", confirmDelete);
+      $("#compose-start").addEventListener("click", () => compose(startRequest).catch((error) => setConnection("error", "Compose failed", errorDetails(error))));
+      $("#compose-stop").addEventListener("click", () => compose(stopRequest).catch((error) => setConnection("error", "Compose failed", errorDetails(error))));
+      $("#add-reference").addEventListener("click", () => addReference().catch((error) => setConnection("error", "Reference failed", errorDetails(error))));
+      $$(".resource-reference").forEach((button) => button.addEventListener("click", () => {
+        if (!state.selected || state.selected.kind !== button.dataset.kind) {
+          setConnection("error", "Select a resource", `Choose a ${button.dataset.kind} row first.`);
+          return;
+        }
+        addReference(state.selected.kind, state.selected.name).catch((error) => setConnection("error", "Reference failed", errorDetails(error)));
+      }));
+      $("#cli-check").addEventListener("click", runCliCheck);
+
+      let disposeOperations = null;
+      if (window.opencodeArtifact?.exposeOperations) {
+        disposeOperations = window.opencodeArtifact.exposeOperations({
+          refresh: {
+            description: "Refresh Pods, PVCs and Notebook resources through the active local bridge.",
+            outputSchema: { type: "object", properties: { online: { type: "boolean" }, pods: { type: "integer" }, pvcs: { type: "integer" }, notebooks: { type: "integer" }, quotaAvailable: { type: "boolean" }, quotaError: { type: "string" }, error: { type: "string" } }, required: ["online", "pods", "pvcs", "notebooks", "quotaAvailable", "quotaError", "error"], additionalProperties: false },
+            async run() {
+              await refreshLiveData();
+              return { online: state.bridgeOnline, pods: state.pods.length, pvcs: state.pvcs.length, notebooks: state.notebooks.length, quotaAvailable: Boolean(state.project?.status?.resourceQuota), quotaError: state.quotaError, error: state.lastError };
+            },
+          },
+          show_section: {
+            description: "Switch the console to a named section.",
+            inputSchema: { type: "object", properties: { section: { type: "string", enum: Object.keys(views), maxLength: 20 } }, required: ["section"], additionalProperties: false },
+            run(input) { setView(input.section); return { section: state.view }; },
+          },
+          prepare_bridge_request: {
+            description: "Prepare a reviewed Agent request to start the kubectl bridge.",
+            async run() { await compose(startRequest); return { prepared: true }; },
+          },
+          run_cli_check: {
+            description: "Run the fixed read-only t9k notebook list diagnostic.",
+            outputSchema: { type: "object", properties: { exitCode: { type: "integer" }, truncated: { type: "boolean" } }, required: ["exitCode", "truncated"], additionalProperties: false },
+            async run() {
+              if (!window.opencodeShell?.run) throw new Error("Artifact Shell API is unavailable.");
+              const result = await window.opencodeShell.run({
+                command: "./t9k notebook get -c './t9k-test/t9k-config.yaml' -x 'aim-yyxdemo-home' -p 'aim-yyxdemo'",
+                timeout: 30000,
+              });
+              $("#diagnostic-output").textContent = `Exit code: ${result.exitCode}\nTruncated: ${result.truncated ? "yes" : "no"}\n\n${result.stdout || "(no stdout)"}${result.stderr ? `\nSTDERR\n${result.stderr}` : ""}`;
+              return { exitCode: result.exitCode, truncated: result.truncated };
+            },
+          },
+        });
+      }
+
+      window.addEventListener("unload", () => { state.token = ""; if (disposeOperations) disposeOperations(); });
+      loadManifests();
+      if (window.opencodeWorkspace?.onDidChange) {
+        window.opencodeWorkspace.onDidChange(["t9k-test/manifests/*.yaml"], () => loadManifests()).then((dispose) => window.addEventListener("unload", dispose, { once: true })).catch(() => {});
+      }
+      initializeConnection().catch((error) => setConnection("error", "Automatic connection failed", errorDetails(error)));
+    </script>
+  </body>
+</html>

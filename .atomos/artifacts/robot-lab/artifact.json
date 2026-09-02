@@ -1,0 +1,34 @@
+{
+  "version": 2,
+  "id": "robot-lab",
+  "name": "FoundryLab Robot Console",
+  "description": "Control Robot R-03, inspect telemetry, and run the S-2408 transfer workflow.",
+  "entry": "index.html",
+  "routing": "spa",
+  "open": {
+    "inputSchema": {
+      "type": "object",
+      "properties": {},
+      "additionalProperties": false
+    }
+  },
+  "capabilities": {
+    "workspace": {
+      "read": [],
+      "write": []
+    },
+    "agent": {
+      "compose": false,
+      "send": false,
+      "receive": false
+    },
+    "network": false
+  },
+  "home": {
+    "quickAccess": true
+  },
+  "data": {
+    "schemaVersion": 1
+  },
+  "services": []
+}

@@ -1,0 +1,24 @@
+{
+  "version": 1,
+  "id": "shell-test",
+  "name": "Shell / Bash Test",
+  "description": "Run bounded foreground shell commands in the current workspace.",
+  "entry": "index.html",
+  "routing": "spa",
+  "capabilities": {
+    "workspace": {
+      "read": [],
+      "write": []
+    },
+    "agent": {
+      "compose": false,
+      "send": false,
+      "receive": false
+    },
+    "network": false
+  },
+  "home": {
+    "quickAccess": true
+  },
+  "services": []
+}

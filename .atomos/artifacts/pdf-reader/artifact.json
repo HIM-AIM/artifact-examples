@@ -1,0 +1,37 @@
+{
+  "version": 2,
+  "id": "pdf-reader",
+  "name": "PDF Reader",
+  "description": "Open and read a local PDF from the Workspace.",
+  "entry": "index.html",
+  "routing": "spa",
+  "open": {
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "document": {
+          "type": "object",
+          "description": "The PDF file to open.",
+          "x-opencode-kind": "workspace-file",
+          "accept": ["application/pdf", ".pdf"]
+        }
+      },
+      "additionalProperties": false
+    }
+  },
+  "capabilities": {
+    "workspace": {
+      "read": ["*.pdf", "*.PDF", "**/*.pdf", "**/*.PDF", ".atomos/artifact-data/workspace/pdf-reader/**"],
+      "write": [".atomos/artifact-data/workspace/pdf-reader/**"]
+    },
+    "agent": {
+      "compose": false,
+      "send": false,
+      "receive": false
+    },
+    "network": false
+  },
+  "home": { "quickAccess": true },
+  "data": { "schemaVersion": 1 },
+  "services": []
+}

@@ -1,0 +1,127 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>FoundryLab Robot Console</title>
+    <link rel="icon" href="data:," />
+    <link rel="stylesheet" href="styles.css" />
+  </head>
+  <body>
+    <main class="console-shell">
+      <header class="topbar">
+        <div class="brand" aria-label="FoundryLab Robot Console">
+          <span class="brand-mark"><i></i><i></i><i></i></span>
+          <span><strong>FoundryLab</strong><small>LAB AUTOMATION</small></span>
+        </div>
+        <div class="header-actions">
+          <button class="reference-button" id="addReference" type="button">添加到对话</button>
+          <div class="run-state"><i></i><span>LIVE</span></div>
+        </div>
+      </header>
+
+      <section class="status-strip" aria-label="运行状态">
+        <div><span>状态</span><strong class="cyan" id="statusText">READY</strong></div>
+        <div><span>Robot</span><strong class="cyan">R-03</strong></div>
+      </section>
+
+      <section class="workspace">
+        <section class="lab-view" aria-label="实验室俯视场景">
+          <div class="view-heading">
+            <div><span>LIVE MAP / LAB-02</span><h1>实验室</h1></div>
+            <div class="view-legend"><i></i>实时同步</div>
+          </div>
+
+          <div class="room">
+            <div class="wall-grid"></div>
+            <div class="lab-boundary"></div>
+            <div class="axis axis-x"><span>X</span><i></i><b>0</b><b>5</b><b>10</b></div>
+            <div class="axis axis-y"><span>Y</span><i></i><b>10</b><b>5</b><b>0</b></div>
+            <div class="clean-zone"><span>ISO 7 CLEAN ZONE</span></div>
+            <div class="route-network">
+              <i></i><i></i><i></i>
+              <svg class="planned-route" viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true">
+                <polyline points="15.8,90 23.6,90 23.6,68.1 23.6,31.6 70.4,31.6 70.4,38.9" />
+              </svg>
+            </div>
+
+            <div class="top-bench lab-fixture">
+              <span class="fixture-title">自动化设备区</span>
+              <div class="mini-device"><i></i><b>培养箱</b><small>IN-01</small></div>
+              <div class="mini-device"><i></i><b>酶标仪</b><small>PR-04</small></div>
+              <div class="mini-device"><i></i><b>移液站</b><small>LH-02</small></div>
+            </div>
+            <div class="cold-store lab-fixture"><i></i><i></i><i></i><strong>冷藏区</strong><small>2-8°C</small></div>
+            <div class="sample-station station">
+              <div class="station-light"></div>
+              <div class="sample-rack"><i></i><i></i><i></i><i></i><i></i></div>
+              <strong>样品台</strong><small>ST-01</small>
+            </div>
+            <div class="island island-a lab-fixture"><span></span><span></span><span></span><span></span><strong>实验岛 A</strong><small>PREP</small></div>
+            <div class="island island-b lab-fixture"><span></span><span></span><span></span><span></span><strong>实验岛 B</strong><small>QC</small></div>
+            <div class="device station">
+              <div class="device-screen"><i></i><span id="deviceScreen">READY</span></div>
+              <div class="device-door"><span id="deviceSample"></span></div>
+              <strong>离心机</strong><small>CF-02</small>
+            </div>
+            <div class="wash-station lab-fixture"><i></i><b>清洗站</b><small>WS-01</small></div>
+            <div class="airlock lab-fixture"><i></i><i></i><strong>气闸</strong><small>AL-02</small></div>
+            <div class="charge-dock lab-fixture"><i></i><strong>充电位</strong><small>DOCK</small></div>
+
+            <div class="robot" id="robot" style="--x: 16%; --y: 90%">
+              <div class="robot-arm"><i></i><span></span></div>
+              <div class="robot-sample" id="robotSample"></div>
+              <div class="robot-body"><span class="robot-eye"><i></i></span><strong>ROBOT</strong><small id="robotMode">STANDBY</small></div>
+              <div class="robot-base"><i></i><i></i></div>
+            </div>
+
+            <div class="scene-caption">
+              <span id="sceneStep">等待任务</span>
+              <small id="sceneDetail">Robot 位于充电位，位置 (1, 0)</small>
+            </div>
+          </div>
+        </section>
+
+        <aside class="control-panel">
+          <button class="floating-action floating-reset" id="resetRobot" type="button" aria-label="重置 Robot" title="重置 Robot">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M18.5 8A7 7 0 1 0 19 15M18.5 8V3.8M18.5 8h-4.2" /></svg>
+          </button>
+          <button class="floating-action" id="runScenario" type="button" aria-label="执行样品转运" title="执行样品转运">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 7.5 17 12l-8 4.5z" /></svg>
+          </button>
+
+          <section class="manual-block">
+            <div class="section-kicker"><span>手动移动</span><b id="positionLabel">X 1 · Y 0</b></div>
+            <label class="unit-field">步长 <input id="moveUnits" type="number" value="3" min="1" max="9" /> 单位</label>
+            <div class="direction-pad">
+              <button data-direction="up" type="button" aria-label="向上移动"><svg viewBox="0 0 24 24"><path d="m6 14 6-6 6 6" /></svg></button>
+              <button data-direction="left" type="button" aria-label="向左移动"><svg viewBox="0 0 24 24"><path d="m14 6-6 6 6 6" /></svg></button>
+              <button class="stop" id="stopRobot" type="button" aria-label="停止"><i></i></button>
+              <button data-direction="right" type="button" aria-label="向右移动"><svg viewBox="0 0 24 24"><path d="m10 6 6 6-6 6" /></svg></button>
+              <button data-direction="down" type="button" aria-label="向下移动"><svg viewBox="0 0 24 24"><path d="m6 10 6 6 6-6" /></svg></button>
+            </div>
+            <p class="inline-error" id="controlError" role="status"></p>
+          </section>
+
+          <section class="telemetry">
+            <div class="section-kicker"><span>Robot 状态</span><i class="connected"></i></div>
+            <dl>
+              <div><dt>电量</dt><dd id="battery">92%</dd></div>
+              <div><dt>载荷</dt><dd id="payload">空载</dd></div>
+              <div><dt>链路</dt><dd>18 ms</dd></div>
+              <div><dt>模式</dt><dd id="modeLabel">待机</dd></div>
+            </dl>
+          </section>
+
+          <section class="event-block">
+            <div class="section-kicker"><span>运行记录</span><button id="clearLog" type="button">清空</button></div>
+            <ol id="eventLog"></ol>
+          </section>
+        </aside>
+      </section>
+
+      <footer><span><i></i> ARTIFACT SDK ONLINE</span><b id="sdkStatus">Agent operations initializing</b></footer>
+    </main>
+    <script src="app.js"></script>
+  </body>
+</html>

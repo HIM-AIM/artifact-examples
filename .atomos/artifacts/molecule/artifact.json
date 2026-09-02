@@ -1,0 +1,48 @@
+{
+  "version": 2,
+  "id": "molecule",
+  "name": "Molecule",
+  "description": "Explore PDB and mmCIF structures with Mol*, chain controls, residue selection, and Agent operations.",
+  "entry": "index.html",
+  "routing": "files",
+  "open": {
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "structure": {
+          "type": "object",
+          "description": "A PDB, CIF, or mmCIF structure in the Workspace.",
+          "x-opencode-kind": "workspace-file",
+          "accept": [".pdb", ".cif", ".mmcif"]
+        }
+      },
+      "additionalProperties": false
+    }
+  },
+  "capabilities": {
+    "workspace": {
+      "read": [
+        "*.pdb",
+        "*.cif",
+        "*.mmcif",
+        "**/*.pdb",
+        "**/*.cif",
+        "**/*.mmcif",
+        ".atomos/artifact-data/workspace/molecule/**"
+      ],
+      "write": [".atomos/artifact-data/workspace/molecule/**"]
+    },
+    "agent": {
+      "compose": false,
+      "send": false
+    },
+    "network": false
+  },
+  "home": {
+    "quickAccess": true
+  },
+  "data": {
+    "schemaVersion": 1
+  },
+  "services": []
+}

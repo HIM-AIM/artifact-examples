@@ -1,0 +1,463 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>PDF Reader</title>
+    <link rel="stylesheet" href="./vendor/pdfjs/web/pdf_viewer.css" />
+    <style>
+      :root { color-scheme: light; font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; background: #edf0ed; color: #18241f; }
+      * { box-sizing: border-box; }
+      body { margin: 0; height: 100vh; overflow: hidden; }
+      main { height: 100%; }
+      .reader { height: 100%; min-width: 0; display: grid; grid-template-rows: auto 1fr; background: #d9ded9; }
+      header { min-height: 66px; display: flex; align-items: center; gap: 12px; padding: 12px 18px; background: #173f35; color: #f6f6ef; }
+      h1 { margin: 0 12px 0 0; font-size: 18px; letter-spacing: .02em; }
+      .file-button, button { border: 0; border-radius: 8px; font: inherit; font-weight: 650; cursor: pointer; }
+      .file-button, .source-button { padding: 9px 13px; }
+      .file-button { background: #d5ef7c; color: #18352c; }
+      .source-button { border: 1px solid #7b9a8d; color: #f6f6ef; background: transparent; }
+      .source-button:hover { background: #2d6658; }
+      input[type=file] { display: none; }
+      #file-name { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: #c3d1ca; font-size: 13px; }
+      .tools { display: flex; align-items: center; gap: 6px; margin-left: auto; }
+      .tools button { padding: 7px 10px; border: 1px solid #7b9a8d; border-radius: 6px; color: #f6f6ef; background: transparent; font-size: 13px; }
+      .tools button:hover { background: #2d6658; }
+      #zoom-value { min-width: 48px; text-align: center; color: #dce8dd; font-size: 13px; }
+      #viewer-wrap { min-height: 0; position: relative; overflow: auto; }
+      #pages { display: grid; justify-content: center; gap: 18px; padding: 24px; }
+      .pdf-page { position: relative; width: max-content; box-shadow: 0 5px 17px #17231d66; background: white; }
+      .pdf-page canvas { display: block; }
+      .pdf-page .textLayer { position: absolute; inset: 0; overflow: hidden; line-height: 1; text-size-adjust: none; forced-color-adjust: none; }
+      .pdf-page .textLayer ::selection { background: #d5ef7ca8; }
+      .empty { position: absolute; inset: 0; display: grid; place-content: center; gap: 9px; padding: 24px; text-align: center; color: #f1f3ed; background: radial-gradient(circle at 35% 25%, #617e70, #263d35 70%); }
+      .empty[hidden] { display: none; }
+      .empty strong { font-size: 24px; }
+      .empty span { margin-top: 9px; color: #d1ddd5; }
+      #status { position: fixed; right: 18px; bottom: 14px; max-width: min(460px, calc(100vw - 36px)); margin: 0; padding: 7px 10px; border-radius: 6px; color: #dce8dd; background: #173f35d9; font-size: 12px; line-height: 1.4; }
+      #selection-menu { position: fixed; z-index: 20; padding: 5px; border: 1px solid #abc5b8; border-radius: 9px; background: #f8faf5; box-shadow: 0 10px 28px #10271d42; }
+      #selection-menu[hidden] { display: none; }
+      #add-reference { padding: 8px 11px; color: #f6f6ef; background: #173f35; font-size: 13px; }
+      #add-reference:hover { background: #2d6658; }
+      #add-reference:disabled { cursor: wait; opacity: .65; }
+      dialog { width: min(620px, calc(100vw - 32px)); max-height: min(680px, calc(100vh - 32px)); padding: 0; border: 1px solid #b8c7bf; border-radius: 14px; color: #18241f; background: #f8faf5; box-shadow: 0 24px 70px #10271d66; }
+      dialog::backdrop { background: #10271d80; backdrop-filter: blur(2px); }
+      .dialog-head { display: flex; align-items: center; gap: 10px; padding: 16px 18px; border-bottom: 1px solid #d7dfda; }
+      .dialog-head h2 { margin: 0; font-size: 17px; }
+      .dialog-head button { margin-left: auto; padding: 6px 9px; color: #426056; background: #e5ebe7; }
+      .browser-bar { display: flex; align-items: center; gap: 8px; min-height: 47px; padding: 8px 18px; border-bottom: 1px solid #d7dfda; color: #52685f; font-size: 13px; }
+      .browser-bar button { padding: 6px 9px; color: #173f35; background: #dce7df; }
+      #workspace-path { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+      .file-list { min-height: 180px; max-height: min(500px, calc(100vh - 180px)); margin: 0; padding: 8px; overflow: auto; list-style: none; }
+      .file-list li { display: flex; align-items: center; gap: 8px; }
+      .file-list button { display: flex; align-items: center; gap: 10px; width: 100%; padding: 10px 12px; overflow: hidden; color: #244139; background: transparent; text-align: left; text-overflow: ellipsis; white-space: nowrap; }
+      .file-list button span:first-child { min-width: 0; overflow: hidden; text-overflow: ellipsis; }
+      .file-list button:hover, .file-list button:focus-visible { background: #e5eee8; outline: none; }
+      .file-list .meta { margin-left: auto; color: #71827a; font-size: 12px; font-weight: 500; }
+      .list-empty { padding: 28px 12px; color: #71827a; text-align: center; }
+      @media (max-width: 620px) { header { flex-wrap: wrap; } .tools { margin-left: 0; } }
+    </style>
+  </head>
+  <body>
+    <main>
+      <section class="reader" aria-label="PDF 阅读器">
+        <header>
+          <h1>PDF Reader</h1>
+          <label class="file-button" for="pdf-file">上传本地 PDF</label>
+          <input id="pdf-file" type="file" accept="application/pdf,.pdf" />
+          <button class="source-button" id="open-workspace" type="button">从工作区选择</button>
+          <button class="source-button" id="open-recent" type="button">最近打开</button>
+          <span id="file-name">尚未选择文件</span>
+          <div class="tools" aria-label="阅读控制">
+            <button id="zoom-out" type="button" title="缩小">−</button>
+            <span id="zoom-value">125%</span>
+            <button id="zoom-in" type="button" title="放大">+</button>
+            <button id="fit-width" type="button">适配宽度</button>
+          </div>
+        </header>
+        <div id="viewer-wrap">
+          <div class="empty" id="empty"><strong>选择 PDF 开始阅读</strong><span>可从本地上传，或直接打开工作区中的 PDF。</span></div>
+          <div id="pages" aria-label="PDF 页面"></div>
+        </div>
+      </section>
+      <p id="status" role="status">准备就绪</p>
+      <div id="selection-menu" role="menu" hidden>
+        <button id="add-reference" type="button" role="menuitem">Add to conversation</button>
+      </div>
+      <dialog id="workspace-dialog">
+        <div class="dialog-head"><h2>从工作区选择 PDF</h2><button type="button" data-close="workspace-dialog">关闭</button></div>
+        <div class="browser-bar"><button id="workspace-up" type="button">上一级</button><span id="workspace-path">Workspace /</span></div>
+        <ul class="file-list" id="workspace-list"></ul>
+      </dialog>
+      <dialog id="recent-dialog">
+        <div class="dialog-head"><h2>最近打开</h2><button type="button" data-close="recent-dialog">关闭</button></div>
+        <ul class="file-list" id="recent-list"></ul>
+      </dialog>
+    </main>
+    <script type="module">
+      const pdfjsBaseUrl = new URL("./vendor/pdfjs/", window.location.href).href
+      let pdfjsLib = null
+      const fileInput = document.querySelector("#pdf-file")
+      const empty = document.querySelector("#empty")
+      const pages = document.querySelector("#pages")
+      const viewerWrap = document.querySelector("#viewer-wrap")
+      const fileName = document.querySelector("#file-name")
+      const status = document.querySelector("#status")
+      const selectionMenu = document.querySelector("#selection-menu")
+      const addReferenceButton = document.querySelector("#add-reference")
+      const workspaceDialog = document.querySelector("#workspace-dialog")
+      const workspaceList = document.querySelector("#workspace-list")
+      const workspacePath = document.querySelector("#workspace-path")
+      const recentDialog = document.querySelector("#recent-dialog")
+      const recentList = document.querySelector("#recent-list")
+      let documentProxy = null
+      let currentDocumentName = ""
+      let selectedReference = null
+      let recentDocuments = []
+      let workspaceDirectory = ""
+      let zoom = 1.25
+
+      const loadPdfJs = async () => {
+        if (pdfjsLib) return pdfjsLib
+        pdfjsLib = await import("./vendor/pdfjs/build/pdf.mjs")
+        pdfjsLib.GlobalWorkerOptions.workerSrc = new URL("build/pdf.worker.mjs", pdfjsBaseUrl).href
+        return pdfjsLib
+      }
+
+      const renderPages = async () => {
+        pages.replaceChildren()
+        empty.hidden = false
+        const pixelRatio = window.devicePixelRatio || 1
+        for (let pageNumber = 1; pageNumber <= documentProxy.numPages; pageNumber += 1) {
+          const page = await documentProxy.getPage(pageNumber)
+          const viewport = page.getViewport({ scale: zoom })
+          const pageElement = document.createElement("div")
+          pageElement.className = "pdf-page"
+          pageElement.dataset.pageNumber = String(pageNumber)
+          pageElement.style.setProperty("--scale-factor", viewport.scale)
+          const canvas = document.createElement("canvas")
+          canvas.width = Math.floor(viewport.width * pixelRatio)
+          canvas.height = Math.floor(viewport.height * pixelRatio)
+          canvas.style.width = `${Math.floor(viewport.width)}px`
+          canvas.style.height = `${Math.floor(viewport.height)}px`
+          const textLayer = document.createElement("div")
+          textLayer.className = "textLayer"
+          pageElement.append(canvas, textLayer)
+          pages.append(pageElement)
+          await page.render({
+            canvasContext: canvas.getContext("2d"),
+            viewport,
+            transform: [pixelRatio, 0, 0, pixelRatio, 0, 0]
+          }).promise
+          const textContent = await page.getTextContent()
+          const layer = new pdfjsLib.TextLayer({ textContentSource: textContent, container: textLayer, viewport })
+          await layer.render()
+        }
+        empty.hidden = true
+      }
+
+      const updateZoom = async (nextZoom) => {
+        if (!documentProxy) return
+        zoom = Math.max(0.5, Math.min(3, nextZoom))
+        document.querySelector("#zoom-value").textContent = `${Math.round(zoom * 100)}%`
+        status.textContent = "正在重新渲染页面。"
+        await renderPages()
+        status.textContent = `缩放：${Math.round(zoom * 100)}%。`
+      }
+
+      const readPdfBytes = async (path) => {
+        const file = await window.opencodeWorkspace.stat(path)
+        if (file.type !== "file") throw new Error("传入的 PDF 路径不是文件。")
+        if (file.size > 250 * 1024 * 1024) throw new Error("PDF 超过阅读器的 250 MiB 限制。")
+        const bytes = new Uint8Array(file.size)
+        const chunkSize = 8 * 1024 * 1024
+        let offset = 0
+        while (offset < file.size) {
+          const chunk = await window.opencodeWorkspace.readRange(path, {
+            offset,
+            length: Math.min(chunkSize, file.size - offset)
+          })
+          if (!chunk.content.byteLength) throw new Error("读取 PDF 时收到空数据块。")
+          bytes.set(chunk.content, offset)
+          offset += chunk.content.byteLength
+          status.textContent = `正在读取 PDF：${Math.round(offset / file.size * 100)}%。`
+        }
+        return bytes
+      }
+
+      const renderPdf = async (path, onLoaded) => {
+        const pdfjs = await loadPdfJs()
+        status.textContent = "正在读取并渲染 PDF。"
+        const bytes = await readPdfBytes(path)
+        await documentProxy?.destroy()
+        documentProxy = await pdfjs.getDocument({
+          data: bytes,
+          cMapUrl: new URL("cmaps/", pdfjsBaseUrl).href,
+          cMapPacked: true,
+          standardFontDataUrl: new URL("standard_fonts/", pdfjsBaseUrl).href
+        }).promise
+        await onLoaded?.()
+        await updateZoom(zoom)
+      }
+
+      const showError = (error) => {
+        status.textContent = [error.message, error.code].filter(Boolean).join(" (") + (error.code ? ")" : "")
+      }
+
+      const uploadPdf = async (file) => {
+        if (file.size > 10 * 1024 * 1024) throw new Error("PDF 超过 Workspace SDK 的 10 MiB 上传限制。")
+        const safeName = file.name.replace(/[^a-zA-Z0-9._-]/g, "_") || "document.pdf"
+        const path = `.atomos/artifact-data/workspace/pdf-reader/uploads/${Date.now()}-${safeName}`
+        await window.opencodeWorkspace.writeBinary(path, new Uint8Array(await file.arrayBuffer()))
+        const saved = await window.opencodeWorkspace.readBinary(path)
+        if (saved.byteLength !== file.size) throw new Error("上传后的文件大小校验失败。")
+        return path
+      }
+
+      const renderRecentList = () => {
+        recentList.replaceChildren()
+        if (!recentDocuments.length) {
+          const item = document.createElement("li")
+          item.className = "list-empty"
+          item.textContent = "还没有最近打开的 PDF。"
+          recentList.append(item)
+          return
+        }
+        for (const recent of recentDocuments) {
+          const item = document.createElement("li")
+          const button = document.createElement("button")
+          button.type = "button"
+          button.title = recent.path
+          const name = document.createElement("span")
+          name.textContent = recent.name
+          const meta = document.createElement("span")
+          meta.className = "meta"
+          meta.textContent = new Date(recent.openedAt).toLocaleDateString("zh-CN")
+          button.append(name, meta)
+          button.addEventListener("click", async () => {
+            recentDialog.close()
+            await openDocument(recent.path, recent.name).catch(showError)
+          })
+          item.append(button)
+          recentList.append(item)
+        }
+      }
+
+      const rememberDocument = async (path, name) => {
+        recentDocuments = [
+          { path, name, openedAt: new Date().toISOString() },
+          ...recentDocuments.filter((recent) => recent.path !== path)
+        ].slice(0, 12)
+        renderRecentList()
+        await window.opencodeArtifact.save("recent.json", recentDocuments)
+      }
+
+      const loadRecentDocuments = async () => {
+        const saved = await window.opencodeArtifact.load("recent.json")
+        recentDocuments = Array.isArray(saved)
+          ? saved.filter((item) => item && typeof item.path === "string" && typeof item.name === "string" && typeof item.openedAt === "string").slice(0, 12)
+          : []
+        renderRecentList()
+      }
+
+      const openDocument = async (path, name = path.split("/").pop() || "PDF document") => {
+        fileName.textContent = name
+        currentDocumentName = name
+        const titleName = Array.from(name).slice(0, 187).join("")
+        await window.opencodeArtifact.setTitle(`PDF Reader · ${titleName}`)
+        await renderPdf(path, () => rememberDocument(path, name))
+        status.textContent = "PDF 已打开。选中文本后右键可添加到 conversation。"
+      }
+
+      const renderWorkspaceDirectory = async (path) => {
+        workspaceList.replaceChildren()
+        workspaceDirectory = path
+        workspacePath.textContent = path ? `Workspace / ${path}` : "Workspace /"
+        document.querySelector("#workspace-up").disabled = !path
+        const loading = document.createElement("li")
+        loading.className = "list-empty"
+        loading.textContent = "正在读取工作区…"
+        workspaceList.append(loading)
+        try {
+          const entries = await window.opencodeWorkspace.list(path)
+          workspaceList.replaceChildren()
+          const visible = entries
+            .filter((entry) => entry.type === "directory" || /\.pdf$/i.test(entry.name))
+            .sort((left, right) => left.type === right.type ? left.name.localeCompare(right.name) : left.type === "directory" ? -1 : 1)
+          if (!visible.length) {
+            const item = document.createElement("li")
+            item.className = "list-empty"
+            item.textContent = "此目录中没有子目录或 PDF。"
+            workspaceList.append(item)
+            return
+          }
+          for (const entry of visible) {
+            const item = document.createElement("li")
+            const button = document.createElement("button")
+            button.type = "button"
+            button.textContent = `${entry.type === "directory" ? "▸" : "PDF"}  ${entry.name}`
+            button.addEventListener("click", async () => {
+              if (entry.type === "directory") {
+                await renderWorkspaceDirectory(entry.path)
+                return
+              }
+              workspaceDialog.close()
+              await openDocument(entry.path, entry.name).catch(showError)
+            })
+            item.append(button)
+            workspaceList.append(item)
+          }
+        } catch (error) {
+          workspaceList.replaceChildren()
+          const item = document.createElement("li")
+          item.className = "list-empty"
+          item.textContent = error.message || "无法读取此工作区目录。"
+          workspaceList.append(item)
+        }
+      }
+
+      const hideSelectionMenu = () => {
+        selectionMenu.hidden = true
+      }
+
+      const selectionPageLocation = (range) => {
+        const start = (range.startContainer.nodeType === Node.ELEMENT_NODE ? range.startContainer : range.startContainer.parentElement)?.closest?.(".pdf-page")
+        const end = (range.endContainer.nodeType === Node.ELEMENT_NODE ? range.endContainer : range.endContainer.parentElement)?.closest?.(".pdf-page")
+        const startPage = start?.dataset.pageNumber
+        const endPage = end?.dataset.pageNumber
+        if (!startPage) return currentDocumentName
+        return startPage === endPage
+          ? `${currentDocumentName}, page ${startPage}`
+          : `${currentDocumentName}, pages ${startPage}-${endPage || startPage}`
+      }
+
+      pages.addEventListener("contextmenu", (event) => {
+        const selection = window.getSelection()
+        const text = selection?.toString().trim()
+        if (!selection || selection.rangeCount === 0 || !text) return
+        const range = selection.getRangeAt(0)
+        const commonElement = range.commonAncestorContainer.nodeType === Node.ELEMENT_NODE
+          ? range.commonAncestorContainer
+          : range.commonAncestorContainer.parentElement
+        if (!commonElement || !pages.contains(commonElement)) return
+        event.preventDefault()
+        selectedReference = { text, location: selectionPageLocation(range) }
+        selectionMenu.hidden = false
+        const menuRect = selectionMenu.getBoundingClientRect()
+        selectionMenu.style.left = `${Math.max(8, Math.min(event.clientX, window.innerWidth - menuRect.width - 8))}px`
+        selectionMenu.style.top = `${Math.max(8, Math.min(event.clientY, window.innerHeight - menuRect.height - 8))}px`
+        addReferenceButton.focus({ preventScroll: true })
+      })
+
+      addReferenceButton.addEventListener("click", async () => {
+        if (!selectedReference) return
+        addReferenceButton.disabled = true
+        try {
+          const content = selectedReference
+          if (content.text.length > 100000) throw new Error("选中文本超过 100,000 字符，请缩小选区。")
+          const fingerprint = Array.from(`${content.location}\0${content.text}`).reduce((hash, character) => (hash * 31 + character.codePointAt(0)) >>> 0, 0)
+          await window.opencodeConversation.addReference({
+            idempotencyKey: `pdf-selection-${fingerprint.toString(36)}-${content.text.length}`,
+            label: `PDF selection: ${currentDocumentName || "document"}`,
+            text: content.text,
+            location: content.location
+          })
+          status.textContent = "选中的 PDF 文本已添加到 conversation。"
+          hideSelectionMenu()
+        } catch (error) {
+          showError(error)
+        } finally {
+          addReferenceButton.disabled = false
+        }
+      })
+
+      document.addEventListener("pointerdown", (event) => {
+        if (!selectionMenu.contains(event.target)) hideSelectionMenu()
+      })
+      window.addEventListener("blur", hideSelectionMenu)
+      window.addEventListener("resize", hideSelectionMenu)
+      viewerWrap.addEventListener("scroll", hideSelectionMenu)
+      document.addEventListener("keydown", (event) => {
+        if (event.key === "Escape") hideSelectionMenu()
+      })
+
+      fileInput.addEventListener("change", async () => {
+        const file = fileInput.files?.[0]
+        if (!file) return
+        if (file.type && file.type !== "application/pdf") {
+          status.textContent = "请选择 PDF 文件。"
+          return
+        }
+        try {
+          fileName.textContent = `${file.name}（上传中）`
+          const path = await uploadPdf(file)
+          status.textContent = "PDF 已上传，正在通过 Workspace SDK 读取并渲染。"
+          await openDocument(path, file.name)
+        } catch (error) {
+          fileName.textContent = "上传失败"
+          showError(error)
+        } finally {
+          fileInput.value = ""
+        }
+      })
+
+      document.querySelector("#open-workspace").addEventListener("click", async () => {
+        workspaceDialog.showModal()
+        await renderWorkspaceDirectory("")
+      })
+      document.querySelector("#workspace-up").addEventListener("click", () => {
+        const parent = workspaceDirectory.split("/").slice(0, -1).join("/")
+        renderWorkspaceDirectory(parent)
+      })
+      document.querySelector("#open-recent").addEventListener("click", () => {
+        renderRecentList()
+        recentDialog.showModal()
+      })
+      document.querySelectorAll("[data-close]").forEach((button) => {
+        button.addEventListener("click", () => document.querySelector(`#${button.dataset.close}`).close())
+      })
+      document.querySelectorAll("dialog").forEach((dialog) => {
+        dialog.addEventListener("click", (event) => {
+          if (event.target === dialog) dialog.close()
+        })
+      })
+
+      document.querySelector("#zoom-out").addEventListener("click", () => updateZoom(zoom - 0.15).catch(showError))
+      document.querySelector("#zoom-in").addEventListener("click", () => updateZoom(zoom + 0.15).catch(showError))
+      document.querySelector("#fit-width").addEventListener("click", async () => {
+        try {
+          if (!documentProxy) return
+          const firstPage = await documentProxy.getPage(1)
+          const unscaledWidth = firstPage.getViewport({ scale: 1 }).width
+          await updateZoom((viewerWrap.clientWidth - 48) / unscaledWidth)
+        } catch (error) { showError(error) }
+      })
+      window.addEventListener("keydown", (event) => {
+        if (!documentProxy || !event.metaKey && !event.ctrlKey) return
+        if (event.key === "+" || event.key === "=") { event.preventDefault(); updateZoom(zoom + 0.15).catch(showError) }
+        if (event.key === "-") { event.preventDefault(); updateZoom(zoom - 0.15).catch(showError) }
+        if (event.key === "0") { event.preventDefault(); updateZoom(1.25).catch(showError) }
+      })
+
+      const initialize = async () => {
+        if (!window.opencodeArtifact?.getOpenInputs) {
+          status.textContent = "Artifact Host 不可用；请通过 AtomOS 打开此阅读器。"
+          return
+        }
+        try {
+          await loadRecentDocuments()
+          const inputs = await window.opencodeArtifact.getOpenInputs()
+          const path = inputs?.document?.path
+          if (!path) return
+          await openDocument(path)
+        } catch (error) {
+          fileName.textContent = "打开失败"
+          showError(error)
+        }
+      }
+
+      initialize()
+
+    </script>
+  </body>
+</html>

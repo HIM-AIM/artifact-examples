@@ -1,0 +1,7 @@
+{
+  "private": true,
+  "dependencies": {
+    "papaparse": "5.5.3",
+    "tabulator-tables": "6.3.1"
+  }
+}
