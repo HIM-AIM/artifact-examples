@@ -16,6 +16,7 @@
           "accept": [".csv", ".tsv", "text/csv", "text/plain"]
         }
       },
+      "required": ["source"],
       "additionalProperties": false
     }
   },

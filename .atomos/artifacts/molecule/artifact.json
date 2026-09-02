@@ -16,6 +16,7 @@
           "accept": [".pdb", ".cif", ".mmcif"]
         }
       },
+      "required": ["structure"],
       "additionalProperties": false
     }
   },

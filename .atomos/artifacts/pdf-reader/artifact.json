@@ -16,6 +16,7 @@
           "accept": ["application/pdf", ".pdf"]
         }
       },
+      "required": ["document"],
       "additionalProperties": false
     }
   },
