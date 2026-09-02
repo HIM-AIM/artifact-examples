@@ -201,9 +201,9 @@ document.querySelector("#resetRobot").addEventListener("click", resetRobot);
 document.querySelector("#clearLog").addEventListener("click", clearEvents);
 document.querySelector("#addReference").addEventListener("click", async () => {
   try {
-    if (!window.opencodeConversation?.addReference) throw new Error("Conversation API unavailable");
+    if (!window.atomos?.conversation?.addReference) throw new Error("Conversation API unavailable");
     const data = snapshot();
-    await window.opencodeConversation.addReference({
+    await window.atomos.conversation.addReference({
       idempotencyKey: crypto.randomUUID(),
       label: `Robot ${data.robot_id} 状态`,
       text: `FoundryLab Robot ${data.robot_id}: stage=${data.stage}, progress=${data.progress}, position=(${data.x}, ${data.y}), battery=${data.battery}%, carrying=${data.carrying}, sample_loaded=${data.sample_loaded}.`,
@@ -215,8 +215,8 @@ document.querySelector("#addReference").addEventListener("click", async () => {
   }
 });
 
-if (window.opencodeArtifact?.exposeOperations) {
-  runtime.disposeOperations = window.opencodeArtifact.exposeOperations({
+if (window.atomos?.artifact?.exposeOperations) {
+  runtime.disposeOperations = window.atomos.artifact.exposeOperations({
     get_robot_state: {
       description: "Return the current authoritative state, progress, and event history for Robot R-03.",
       outputSchema: stateSchema,

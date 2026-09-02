@@ -328,7 +328,7 @@
         $("#delimiter-label").textContent = `分隔符：${state.delimiter === "\t" ? "Tab" : state.delimiter || "自动"}`
         $("#group").innerHTML = '<option value="">不分组</option>' + state.fields.map((field) => `<option value="${escapeAttr(field)}">${escapeHTML(field)}</option>`).join("")
         selectField(state.selected)
-        window.opencodeArtifact?.setTitle(`${state.fileName} · Dataset Explorer`).catch(() => {})
+        window.atomos?.artifact?.setTitle(`${state.fileName} · Dataset Explorer`).catch(() => {})
       }
 
       function clearSelectionVisuals() {
@@ -420,13 +420,13 @@
       }
 
       async function addSelectionToConversation() {
-        if (!window.opencodeConversation) return toast("当前环境不支持添加对话引用")
+        if (!window.atomos?.conversation) return toast("当前环境不支持添加对话引用")
         const reference = selectionReference()
         if (!reference) return toast("请先选择单元格、行或列")
         try {
           let text = JSON.stringify(reference.value, null, 2)
           if (text.length > 95000) text = text.slice(0, 95000) + "\n…内容已截断"
-          await window.opencodeConversation.addReference({
+          await window.atomos.conversation.addReference({
             idempotencyKey: crypto.randomUUID(),
             label: reference.label.slice(0, 200),
             location: reference.location.slice(0, 500),
@@ -536,7 +536,7 @@
       $("#sample-btn").addEventListener("click", async () => {
         try {
           if (!state.sourcePath) return await loadBuiltInSample()
-          loadText(await window.opencodeWorkspace.readText(state.sourcePath), state.sourcePath.split("/").pop())
+          loadText(await window.atomos.workspace.readText(state.sourcePath), state.sourcePath.split("/").pop())
           toast("已重新载入 Workspace 文件")
         } catch (error) { toast(error.message) }
       })
@@ -570,11 +570,11 @@
         else state.table?.setFilter((row) => state.fields.some((field) => String(row[field] ?? "").toLocaleLowerCase().includes(query)))
       })
       $("#reference-btn").addEventListener("click", async () => {
-        if (!window.opencodeConversation) return toast("当前环境不支持添加对话引用")
+        if (!window.atomos?.conversation) return toast("当前环境不支持添加对话引用")
         try {
-          if (referenceID) await window.opencodeConversation.removeReference(referenceID)
+          if (referenceID) await window.atomos.conversation.removeReference(referenceID)
           const stats = state.selected ? getStats(state.selected) : null
-          referenceID = await window.opencodeConversation.addReference({
+          referenceID = await window.atomos.conversation.addReference({
             idempotencyKey: crypto.randomUUID(),
             label: `${state.fileName || "Dataset"} 数据摘要`,
             location: `Dataset Explorer / ${state.selected || "overview"}`,
@@ -587,7 +587,7 @@
       document.addEventListener("dragleave", (event) => { if (!event.relatedTarget) document.body.classList.remove("dragging") })
       document.addEventListener("drop", (event) => { event.preventDefault(); document.body.classList.remove("dragging"); openLocalFile(event.dataTransfer.files[0]) })
 
-      window.opencodeArtifact?.exposeOperations({
+      window.atomos?.artifact?.exposeOperations({
         load_sample: {
           description: "Load the built-in 100-row example CSV dataset",
           inputSchema: { type: "object", properties: {}, additionalProperties: false },
@@ -603,11 +603,11 @@
 
       async function initialize() {
         try {
-          const inputs = await window.opencodeArtifact?.getOpenInputs()
-          if (inputs?.source?.path && window.opencodeWorkspace) {
+          const inputs = await window.atomos?.artifact?.getOpenInputs()
+          if (inputs?.source?.path && window.atomos?.workspace) {
             state.sourcePath = inputs.source.path
             $("#sample-btn").textContent = "重新载入文件"
-            loadText(await window.opencodeWorkspace.readText(state.sourcePath), state.sourcePath.split("/").pop())
+            loadText(await window.atomos.workspace.readText(state.sourcePath), state.sourcePath.split("/").pop())
             return
           }
         } catch (error) { toast(`无法读取 Workspace 文件：${error.message}`) }

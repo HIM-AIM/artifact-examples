@@ -166,14 +166,14 @@
       }
 
       const readPdfBytes = async (path) => {
-        const file = await window.opencodeWorkspace.stat(path)
+        const file = await window.atomos.workspace.stat(path)
         if (file.type !== "file") throw new Error("传入的 PDF 路径不是文件。")
         if (file.size > 250 * 1024 * 1024) throw new Error("PDF 超过阅读器的 250 MiB 限制。")
         const bytes = new Uint8Array(file.size)
         const chunkSize = 8 * 1024 * 1024
         let offset = 0
         while (offset < file.size) {
-          const chunk = await window.opencodeWorkspace.readRange(path, {
+          const chunk = await window.atomos.workspace.readRange(path, {
             offset,
             length: Math.min(chunkSize, file.size - offset)
           })
@@ -208,8 +208,8 @@
         if (file.size > 10 * 1024 * 1024) throw new Error("PDF 超过 Workspace SDK 的 10 MiB 上传限制。")
         const safeName = file.name.replace(/[^a-zA-Z0-9._-]/g, "_") || "document.pdf"
         const path = `.atomos/artifact-data/workspace/pdf-reader/uploads/${Date.now()}-${safeName}`
-        await window.opencodeWorkspace.writeBinary(path, new Uint8Array(await file.arrayBuffer()))
-        const saved = await window.opencodeWorkspace.readBinary(path)
+        await window.atomos.workspace.writeBinary(path, new Uint8Array(await file.arrayBuffer()))
+        const saved = await window.atomos.workspace.readBinary(path)
         if (saved.byteLength !== file.size) throw new Error("上传后的文件大小校验失败。")
         return path
       }
@@ -249,11 +249,11 @@
           ...recentDocuments.filter((recent) => recent.path !== path)
         ].slice(0, 12)
         renderRecentList()
-        await window.opencodeArtifact.save("recent.json", recentDocuments)
+        await window.atomos.artifact.save("recent.json", recentDocuments)
       }
 
       const loadRecentDocuments = async () => {
-        const saved = await window.opencodeArtifact.load("recent.json")
+        const saved = await window.atomos.artifact.load("recent.json")
         recentDocuments = Array.isArray(saved)
           ? saved.filter((item) => item && typeof item.path === "string" && typeof item.name === "string" && typeof item.openedAt === "string").slice(0, 12)
           : []
@@ -264,7 +264,7 @@
         fileName.textContent = name
         currentDocumentName = name
         const titleName = Array.from(name).slice(0, 187).join("")
-        await window.opencodeArtifact.setTitle(`PDF Reader · ${titleName}`)
+        await window.atomos.artifact.setTitle(`PDF Reader · ${titleName}`)
         await renderPdf(path, () => rememberDocument(path, name))
         status.textContent = "PDF 已打开。选中文本后右键可添加到 conversation。"
       }
@@ -279,7 +279,7 @@
         loading.textContent = "正在读取工作区…"
         workspaceList.append(loading)
         try {
-          const entries = await window.opencodeWorkspace.list(path)
+          const entries = await window.atomos.workspace.list(path)
           workspaceList.replaceChildren()
           const visible = entries
             .filter((entry) => entry.type === "directory" || /\.pdf$/i.test(entry.name))
@@ -356,7 +356,7 @@
           const content = selectedReference
           if (content.text.length > 100000) throw new Error("选中文本超过 100,000 字符，请缩小选区。")
           const fingerprint = Array.from(`${content.location}\0${content.text}`).reduce((hash, character) => (hash * 31 + character.codePointAt(0)) >>> 0, 0)
-          await window.opencodeConversation.addReference({
+          await window.atomos.conversation.addReference({
             idempotencyKey: `pdf-selection-${fingerprint.toString(36)}-${content.text.length}`,
             label: `PDF selection: ${currentDocumentName || "document"}`,
             text: content.text,
@@ -440,13 +440,13 @@
       })
 
       const initialize = async () => {
-        if (!window.opencodeArtifact?.getOpenInputs) {
+        if (!window.atomos?.artifact?.getOpenInputs) {
           status.textContent = "Artifact Host 不可用；请通过 AtomOS 打开此阅读器。"
           return
         }
         try {
           await loadRecentDocuments()
-          const inputs = await window.opencodeArtifact.getOpenInputs()
+          const inputs = await window.atomos.artifact.getOpenInputs()
           const path = inputs?.document?.path
           if (!path) return
           await openDocument(path)

@@ -67,7 +67,7 @@
           showStatus("Timeout must be an integer from 1 to 600000 ms.", true);
           return;
         }
-        if (!window.opencodeShell?.run) {
+        if (!window.atomos?.shell?.run) {
           showStatus("Shell API is unavailable. Open this page as an AtomOS Artifact.", true);
           return;
         }
@@ -76,7 +76,7 @@
         output.textContent = "";
         showStatus("Running command...");
         try {
-          const result = await window.opencodeShell.run({ command: value, timeout: timeoutValue });
+          const result = await window.atomos.shell.run({ command: value, timeout: timeoutValue });
           const stdout = result.stdout || "(empty)";
           const stderr = result.stderr || "(empty)";
           output.textContent = `Exit code: ${result.exitCode}\nTruncated: ${result.truncated ? "yes" : "no"}\n\nSTDOUT\n${stdout}\n\nSTDERR\n${stderr}`;

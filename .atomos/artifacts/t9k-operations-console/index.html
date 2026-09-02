@@ -417,7 +417,7 @@
         $$(".view").forEach((panel) => panel.classList.toggle("active", panel.dataset.viewPanel === name));
         $("#view-title").textContent = views[name][0];
         $("#view-subtitle").textContent = views[name][1];
-        window.opencodeArtifact?.setTitle?.(`T9K · ${views[name][0]}`).catch(() => {});
+        window.atomos?.artifact?.setTitle?.(`T9K · ${views[name][0]}`).catch(() => {});
       }
 
       function setConnection(status, label, detail) {
@@ -429,10 +429,10 @@
       }
 
       async function apiRequest(path, method = "GET", body, extraHeaders = {}) {
-        if (!window.opencodeHttp?.request) throw new Error("Host HTTP API is unavailable. Open this page as an AtomOS Artifact.");
+        if (!window.atomos?.http?.request) throw new Error("Host HTTP API is unavailable. Open this page as an AtomOS Artifact.");
         const headers = { ...extraHeaders };
         if (state.token) headers.authorization = `Bearer ${state.token}`;
-        const response = await window.opencodeHttp.request({
+        const response = await window.atomos.http.request({
           url: `${state.baseUrl}${path}`,
           method,
           headers,
@@ -505,7 +505,7 @@
         const source = $("#credential-source").value;
         if (source === "local") return useLocalBridge();
         if (source === "builtin") {
-          const text = await window.opencodeWorkspace.readText(builtinKubeconfigPath);
+          const text = await window.atomos.workspace.readText(builtinKubeconfigPath);
           return connectWithConfig(parseKubeconfig(text), "workspace compatibility profile");
         }
         if (source === "opened") {
@@ -701,14 +701,14 @@
       async function initializeConnection() {
         let inputs = {};
         try {
-          inputs = await window.opencodeArtifact?.getOpenInputs?.() || {};
+          inputs = await window.atomos?.artifact?.getOpenInputs?.() || {};
         } catch (error) {
           setConnection("error", "Input unavailable", errorDetails(error));
         }
 
         let config = null;
         if (inputs.kubeconfig?.path) {
-          const text = await window.opencodeWorkspace.readText(inputs.kubeconfig.path);
+          const text = await window.atomos.workspace.readText(inputs.kubeconfig.path);
           config = parseKubeconfig(text);
           state.openedConfig = { ...config };
           const option = $("#credential-source option[value='opened']");
@@ -795,19 +795,19 @@
       }
 
       async function compose(text) {
-        if (!window.opencodeAgent?.compose) throw new Error("Agent Compose is unavailable.");
-        await window.opencodeAgent.compose({ text });
+        if (!window.atomos?.agent?.compose) throw new Error("Agent Compose is unavailable.");
+        await window.atomos.agent.compose({ text });
       }
 
       const startRequest = `Start the verified temporary Kubernetes bridge for T9K Notebook atomos-nb-test-20260825 in project aim-yyxdemo. Use workspace-local ./t9k-pf and t9k-test credentials to expose Notebook SSH on localhost:32222, then SSH-forward localhost:18001 to a kubectl proxy inside the Notebook. The remote proxy must bind only to 127.0.0.1, authenticate through /var/run/secrets/kubernetes.io/serviceaccount using tokenFile and ca.crt, and never print or copy the token. Allocate an SSH TTY, track the remote kubectl proxy PID, and install EXIT/HUP/INT/TERM cleanup so cancellation removes both the temporary kubeconfig and remote listener. Run both long-lived processes as auditable background jobs, verify /version plus Pods and notebooks through http://127.0.0.1:18001, and report both job IDs. Do not alter cluster resources.`;
       const stopRequest = `Stop the temporary T9K Kubernetes bridge for localhost ports 18001 and 32222. Before cancelling the SSH and t9k-pf jobs, use the active SSH path to stop any kubectl proxy bound to Notebook localhost:18080 and verify that no matching remote listener remains. Then cancel both background jobs, treat exit code 143 from intentional cancellation as expected, and do not delete any Kubernetes or T9K resources.`;
 
       async function addReference(kind, name) {
-        if (!window.opencodeConversation?.addReference) throw new Error("Conversation references are unavailable.");
+        if (!window.atomos?.conversation?.addReference) throw new Error("Conversation references are unavailable.");
         const text = kind && name
           ? `${kind} ${name} in T9K project ${state.namespace}. Selected in the T9K Operations Console.`
           : `T9K Operations Console status: namespace=${state.namespace}, connection=${$("#status-label").textContent}, pods=${state.pods.length}, pvcs=${state.pvcs.length}, notebooks=${state.notebooks.length}.`;
-        await window.opencodeConversation.addReference({
+        await window.atomos.conversation.addReference({
           idempotencyKey: `t9k-console-${kind || "summary"}-${name || Date.now()}`,
           label: name ? `${kind}: ${name}` : "T9K console summary",
           text,
@@ -817,18 +817,18 @@
 
       async function loadManifests() {
         const list = $("#manifest-list");
-        if (!window.opencodeWorkspace?.list) {
+        if (!window.atomos?.workspace?.list) {
           list.innerHTML = '<span class="error-text">Workspace API unavailable.</span>';
           return;
         }
         try {
-          const entries = (await window.opencodeWorkspace.list("t9k-test/manifests")).filter((entry) => entry.type === "file" && entry.name.endsWith(".yaml"));
+          const entries = (await window.atomos.workspace.list("t9k-test/manifests")).filter((entry) => entry.type === "file" && entry.name.endsWith(".yaml"));
           list.innerHTML = entries.length ? entries.map((entry) => `<button class="manifest-button" data-path="${escapeHtml(entry.path)}" type="button">${escapeHtml(entry.name)}</button>`).join("") : '<span class="muted">No YAML manifests found.</span>';
           $$(".manifest-button").forEach((button) => button.addEventListener("click", async () => {
             $$(".manifest-button").forEach((item) => item.classList.toggle("active", item === button));
             $("#manifest-content").textContent = "Loading…";
             try {
-              $("#manifest-content").textContent = await window.opencodeWorkspace.readText(button.dataset.path);
+              $("#manifest-content").textContent = await window.atomos.workspace.readText(button.dataset.path);
             } catch (error) {
               $("#manifest-content").textContent = errorDetails(error);
             }
@@ -841,14 +841,14 @@
       async function runCliCheck() {
         const button = $("#cli-check");
         const output = $("#diagnostic-output");
-        if (!window.opencodeShell?.run) {
+        if (!window.atomos?.shell?.run) {
           output.textContent = "Shell API unavailable. Open as an Artifact and enable Artifact Shell access.";
           return;
         }
         button.disabled = true;
         output.textContent = "Running fixed read-only command…";
         try {
-          const result = await window.opencodeShell.run({
+          const result = await window.atomos.shell.run({
             command: "./t9k notebook get -c './t9k-test/t9k-config.yaml' -x 'aim-yyxdemo-home' -p 'aim-yyxdemo'",
             timeout: 30000,
           });
@@ -904,8 +904,8 @@
       $("#cli-check").addEventListener("click", runCliCheck);
 
       let disposeOperations = null;
-      if (window.opencodeArtifact?.exposeOperations) {
-        disposeOperations = window.opencodeArtifact.exposeOperations({
+      if (window.atomos?.artifact?.exposeOperations) {
+        disposeOperations = window.atomos.artifact.exposeOperations({
           refresh: {
             description: "Refresh Pods, PVCs and Notebook resources through the active local bridge.",
             outputSchema: { type: "object", properties: { online: { type: "boolean" }, pods: { type: "integer" }, pvcs: { type: "integer" }, notebooks: { type: "integer" }, quotaAvailable: { type: "boolean" }, quotaError: { type: "string" }, error: { type: "string" } }, required: ["online", "pods", "pvcs", "notebooks", "quotaAvailable", "quotaError", "error"], additionalProperties: false },
@@ -927,8 +927,8 @@
             description: "Run the fixed read-only t9k notebook list diagnostic.",
             outputSchema: { type: "object", properties: { exitCode: { type: "integer" }, truncated: { type: "boolean" } }, required: ["exitCode", "truncated"], additionalProperties: false },
             async run() {
-              if (!window.opencodeShell?.run) throw new Error("Artifact Shell API is unavailable.");
-              const result = await window.opencodeShell.run({
+              if (!window.atomos?.shell?.run) throw new Error("Artifact Shell API is unavailable.");
+              const result = await window.atomos.shell.run({
                 command: "./t9k notebook get -c './t9k-test/t9k-config.yaml' -x 'aim-yyxdemo-home' -p 'aim-yyxdemo'",
                 timeout: 30000,
               });
@@ -941,8 +941,8 @@
 
       window.addEventListener("unload", () => { state.token = ""; if (disposeOperations) disposeOperations(); });
       loadManifests();
-      if (window.opencodeWorkspace?.onDidChange) {
-        window.opencodeWorkspace.onDidChange(["t9k-test/manifests/*.yaml"], () => loadManifests()).then((dispose) => window.addEventListener("unload", dispose, { once: true })).catch(() => {});
+      if (window.atomos?.workspace?.onDidChange) {
+        window.atomos.workspace.onDidChange(["t9k-test/manifests/*.yaml"], () => loadManifests()).then((dispose) => window.addEventListener("unload", dispose, { once: true })).catch(() => {});
       }
       initializeConnection().catch((error) => setConnection("error", "Automatic connection failed", errorDetails(error)));
     </script>

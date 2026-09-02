@@ -562,7 +562,7 @@
     async function visit(path, depth) {
       if (depth > 10 || files.length >= 5000) return
       let nodes
-      try { nodes = await window.opencodeWorkspace.list(path) }
+      try { nodes = await window.atomos.workspace.list(path) }
       catch (_) { return }
       for (const node of nodes) {
         if (node.type === "file" && ["pdb", "cif", "mmcif"].includes(extensionOf(node.name))) files.push(node.path)
@@ -604,7 +604,7 @@
     const canvasStats = state.viewer.plugin.managers.structure.selection.stats
     if (!state.selected.size && !canvasStats.elementCount) throw new Error("Select at least one residue first.")
     const countLabel = state.selected.size || canvasStats.label
-    state.referenceID = await window.opencodeConversation.addReference({
+    state.referenceID = await window.atomos.conversation.addReference({
       idempotencyKey: crypto.randomUUID(),
       label: `${state.source.name}: ${countLabel} selected`,
       text: selectionReferenceText(),
@@ -648,7 +648,7 @@
   function exposeOperations() {
     if (state.operationsDispose) state.operationsDispose()
     const { chainInput, residuesInput } = operationSchemas()
-    state.operationsDispose = window.opencodeArtifact.exposeOperations({
+    state.operationsDispose = window.atomos.artifact.exposeOperations({
       get_structure_summary: {
         description: "List the loaded structure, chains, amino-acid counts, hidden chains, and selected residues.",
         run: () => ({
@@ -767,9 +767,9 @@
     els.clearCanvasHighlight.disabled = false
     renderChains()
     await rebuildScene()
-    await window.opencodeArtifact.setTitle(`Molecule · ${name}`)
+    await window.atomos.artifact.setTitle(`Molecule · ${name}`)
     if (path) {
-      try { await window.opencodeArtifact.save("recent-source.json", { path }) }
+      try { await window.atomos.artifact.save("recent-source.json", { path }) }
       catch (error) { console.warn("Could not persist recent Molecule source", error) }
     }
     exposeOperations()
@@ -783,7 +783,7 @@
     const chunkSize = 10 * 1024 * 1024
     let offset = 0
     while (true) {
-      const chunk = await window.opencodeWorkspace.readRange(path, { offset, length: chunkSize })
+      const chunk = await window.atomos.workspace.readRange(path, { offset, length: chunkSize })
       parts.push(decoder.decode(chunk.content, { stream: !chunk.eof }))
       offset += chunk.content.length
       if (chunk.eof) break
@@ -815,11 +815,11 @@
         state.viewer.plugin.managers.structure.selection.events.changed.subscribe(updateSelectionUI)
       )
 
-      const inputs = await window.opencodeArtifact.getOpenInputs()
+      const inputs = await window.atomos.artifact.getOpenInputs()
       let path = inputs && inputs.structure && inputs.structure.path
       if (!path) {
         try {
-          const recent = await window.opencodeArtifact.load("recent-source.json")
+          const recent = await window.atomos.artifact.load("recent-source.json")
           if (recent && typeof recent.path === "string") path = recent.path
         } catch (error) {
           console.warn("Could not restore recent Molecule source", error)
